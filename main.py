@@ -1,5 +1,8 @@
 import os
+import logging
 from openai import OpenAI
+
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 def get_openai_client(api_key):
     """Create and return an OpenAI client with the given API key."""
@@ -18,7 +21,7 @@ def query_openai(client, model, user_input):
         )
         return completion.choices[0].message.content
     except Exception as e:
-        print(f"An error occurred: {e}")
+        logging.error(f"An error occurred: {e}")
         return None
 
 def main():
