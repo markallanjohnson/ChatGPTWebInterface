@@ -12,21 +12,23 @@ def get_user_input():
     """Prompt the user for input and return the input."""
     return input("Enter your query (or type 'exit' to quit): ")
 
-def query_openai(client, model, user_input):
+def query_openai(client, model, conversation_history):
     """Send a query to OpenAI and return the response."""
     try:
         completion = client.chat.completions.create(
             model=model, 
-            messages=[{"role": "user", "content": user_input}]
+            messages=conversation_history
         )
-        return completion.choices[0].message.content
+        response = completion.choices[0].message.content
+        return response
     except Exception as e:
         logging.error(f"An error occurred: {e}")
         return None
 
 def main():
     client = get_openai_client(api_key=os.environ["OPENAI_API_KEY"])
-    model = "gpt-4-1106-preview" 
+    model = "gpt-4-1106-preview"
+    conversation_history = []
 
     while True:
         user_input = get_user_input()
@@ -35,9 +37,12 @@ def main():
             print("Exiting...")
             break
 
-        response = query_openai(client, model, user_input)
+        conversation_history.append({"role": "user", "content": user_input})
+
+        response = query_openai(client, model, conversation_history)
         if response:
             print("AI Response:", response)
+            conversation_history.append({"role": "assistant", "content": response})
 
 if __name__ == "__main__":
     main()
