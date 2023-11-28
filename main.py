@@ -5,25 +5,28 @@ from openai import OpenAI
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 def get_openai_client(api_key):
-    """Create and return an OpenAI client with the given API key."""
+    """Create and return an OpenAI client with given API key."""
     return OpenAI(api_key=api_key)
 
 def get_user_input():
-    """Prompt the user for input and return the input."""
+    """Prompt user for input and return input."""
     return input("Enter your query (or type 'exit' to quit): ")
 
 def query_openai(client, model, conversation_history):
-    """Send a query to OpenAI and return the response."""
+    """Send query to OpenAI and indicate processing."""
     try:
+        print("Processing...", end='\r')  # Print processing message
         completion = client.chat.completions.create(
             model=model, 
             messages=conversation_history
         )
+        print(" " * 50, end='\r')  # Clear the processing message
         response = completion.choices[0].message.content
         return response
     except Exception as e:
         logging.error(f"An error occurred: {e}")
         return None
+
 
 def main():
     client = get_openai_client(api_key=os.environ["OPENAI_API_KEY"])
