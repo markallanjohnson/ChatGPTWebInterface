@@ -8,7 +8,6 @@ import (
 )
 
 func main() {
-	// Serve static files like index.html
 	http.Handle("/", http.FileServer(http.Dir("./static")))
 
 	// Handle AJAX requests
@@ -24,7 +23,7 @@ func queryHandler(w http.ResponseWriter, r *http.Request) {
 	userQuery := r.URL.Query().Get("query")
 
 	// Run the Python script with the user query
-	cmd := exec.Command("python", "script.py")
+	cmd := exec.Command("python", "main.py")
 	cmd.Stdin = strings.NewReader(userQuery)
 	output, err := cmd.Output()
 	if err != nil {

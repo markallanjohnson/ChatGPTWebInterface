@@ -17,15 +17,17 @@ class OpenAIChatbot:
         return input("\nEnter query or type 'exit' to quit: ")
 
     def fetch_html_content(self, url):
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3'}
         try:
-            response = requests.get(url)
+            response = requests.get(url, headers=headers)
             response.raise_for_status()
             logging.info(f"Fetched URL: {url} with status: {response.status_code}")
-            logging.info(f"Snippet of HTML content: {response.text[:500]}")  # Log first 500 characters
             return response.text
         except requests.RequestException as e:
             logging.error(f"Error fetching URL: {e}")
             return None
+
 
     def extract_text_from_html(self, html_content):
         soup = BeautifulSoup(html_content, 'html.parser')

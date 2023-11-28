@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Chat Interface</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #f0f0f0;
+        }
+        #chat-container {
+            width: 40%;
+            max-width: 600px;
+            min-width: 300px;
+        }
+        #chat-box {
+            height: 300px;
+            border: 1px solid #ddd;
+            padding: 10px;
+            overflow-y: scroll;
+            background-color: #fff;
+            margin-bottom: 10px;
+        }
+        #input-box {
+            padding: 10px;
+            border: 1px solid #ddd;
+            width: calc(100% - 22px); /* Adjust for padding and border */
+        }
+    </style>
+</head>
+<body>
+    <div id="chat-container">
+        <div id="chat-box"></div>
+        <input type="text" id="input-box" placeholder="Type your message here..." onkeypress="sendMessage(event)">
+    </div>
+
+    <script>
+        function sendMessage(event) {
+            if (event.key === "Enter") {
+                let inputBox = document.getElementById('input-box');
+                let message = inputBox.value;
+                inputBox.value = '';
+
+                // Display the user's message immediately
+                appendMessage('You: ' + message);
+
+                // Send the message to the Go server
+                fetch('/query?query=' + encodeURIComponent(message))
+                    .then(response => response.text())
+                    .then(data => {
+                        // Display the response from the Python script
+                        appendMessage('AI: ' + data);
+                    }).catch(error => {
+                        console.error('Error:', error);
+                    });
+            }
+        }
+
+        function appendMessage(message) {
+            let chatBox = document.getElementById('chat-box');
+            let messageElement = document.createElement('div');
+            messageElement.textContent = message;
+            chatBox.appendChild(messageElement);
+
+            // Scroll to the bottom
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+    </script>
+</body>
+</html>
