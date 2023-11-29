@@ -8,38 +8,75 @@
             margin: 0;
             padding: 0;
             display: flex;
-            justify-content: center;
-            align-items: center;
             height: 100vh;
             background-color: #f0f0f0;
         }
+        #sidebar {
+            width: 20%;
+            background-color: #333;
+            color: white;
+            overflow-y: auto;
+            padding: 10px;
+        }
         #chat-container {
-            width: 40%;
-            max-width: 600px;
-            min-width: 300px;
+            width: 80%;
+            display: flex;
+            flex-direction: column;
+            align-items: stretch;
         }
         #chat-box {
-            height: 300px;
+            flex-grow: 1;
             border: 1px solid #ddd;
             padding: 10px;
-            overflow-y: scroll;
+            overflow-y: auto;
             background-color: #fff;
-            margin-bottom: 10px;
         }
         #input-box {
             padding: 10px;
             border: 1px solid #ddd;
             width: calc(100% - 22px); /* Adjust for padding and border */
         }
+        #new-chat-button {
+            padding: 10px 20px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            margin-bottom: 10px;
+        }
+        #new-chat-button:hover {
+            background-color: #45a049;
+        }
+
+        
     </style>
 </head>
 <body>
+    <div id="sidebar">
+        <button id="new-chat-button" onclick="createNewChat()">New Chat</button>
+        <h2>Chat Histories</h2>
+        <!-- Chat history links will go here -->
+    </div>
     <div id="chat-container">
         <div id="chat-box"></div>
         <input type="text" id="input-box" placeholder="Type your message here..." onkeypress="sendMessage(event)">
     </div>
 
     <script>
+        let currentSessionId = null;
+
+        function createNewChat() {
+            fetch('/new-session', { method: 'POST' })
+                .then(response => response.json())
+                .then(data => {
+                    currentSessionId = data.session_id;
+                    document.getElementById('chat-box').innerHTML = ''; // Clear chat box
+                    console.log("New chat session created:", currentSessionId);
+                }).catch(error => {
+                    console.error('Error creating new session:', error);
+                });
+        }
+
         function sendMessage(event) {
             if (event.key === "Enter") {
                 let inputBox = document.getElementById('input-box');
@@ -49,8 +86,8 @@
                 // Display the user's message immediately
                 appendMessage('You: ' + message);
 
-                // Send the message to the Go server
-                fetch('/query?query=' + encodeURIComponent(message))
+                // Send the message to the Go server with the current session ID
+                fetch('/query?session_id=' + currentSessionId + '&query=' + encodeURIComponent(message))
                     .then(response => response.text())
                     .then(data => {
                         // Display the response from the Python script
@@ -70,6 +107,7 @@
             // Scroll to the bottom
             chatBox.scrollTop = chatBox.scrollHeight;
         }
+
     </script>
 </body>
 </html>

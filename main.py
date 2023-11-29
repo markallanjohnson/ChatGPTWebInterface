@@ -26,12 +26,10 @@ def query_openai(client, model, conversation_history):
 def main():
     client = get_openai_client(api_key=os.environ["OPENAI_API_KEY"])
     model = "gpt-4-1106-preview"
-    conversation_history = []
 
-    # Read the input from stdin
-    user_input = sys.stdin.read()
-
-    conversation_history.append({"role": "user", "content": user_input})
+    # Read the conversation history from stdin
+    conversation_history_json = sys.stdin.read()
+    conversation_history = json.loads(conversation_history_json)
 
     response = query_openai(client, model, conversation_history)
     if response:
