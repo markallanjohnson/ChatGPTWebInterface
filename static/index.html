@@ -64,17 +64,27 @@
 
     <script>
         let currentSessionId = null;
+        let isCurrentSessionAddedToSidebar = false;
 
         function createNewChat() {
-            fetch('/new-session', { method: 'POST' })
+            return fetch('/new-session', { method: 'POST' })
                 .then(response => response.json())
                 .then(data => {
                     currentSessionId = data.session_id;
-                    document.getElementById('chat-box').innerHTML = ''; // Clear chat box
+                    document.getElementById('chat-box').innerHTML = ''; // Clear previous chat
                     console.log("New chat session created:", currentSessionId);
+                    isCurrentSessionAddedToSidebar = false;
                 }).catch(error => {
                     console.error('Error creating new session:', error);
                 });
+        }
+
+        function addSessionToSidebar(sessionId) {
+            const sidebar = document.getElementById('sidebar');
+            const sessionLink = document.createElement('button');
+            sessionLink.textContent = 'Session ' + sessionId;
+            sessionLink.onclick = () => loadSession(sessionId);
+            sidebar.appendChild(sessionLink);
         }
 
         function sendMessage(event) {
@@ -83,19 +93,34 @@
                 let message = inputBox.value;
                 inputBox.value = '';
 
-                // Display the user's message immediately
-                appendMessage('You: ' + message);
-
-                // Send the message to the Go server with the current session ID
-                fetch('/query?session_id=' + currentSessionId + '&query=' + encodeURIComponent(message))
-                    .then(response => response.text())
-                    .then(data => {
-                        // Display the response from the Python script
-                        appendMessage('AI: ' + data);
-                    }).catch(error => {
-                        console.error('Error:', error);
+                // If no current session, create one before sending the message
+                if (currentSessionId === null) {
+                    createNewChat().then(() => {
+                        sendAndDisplayMessage(message);
+                        appendMessage('You: ' + message);
                     });
+                } else {
+                    appendMessage('You: ' + message);
+                    sendAndDisplayMessage(message);
+                }
             }
+        }
+        
+        function sendAndDisplayMessage(message) {
+            // Send the message to the Go server with the current session ID
+            fetch('/query?session_id=' + currentSessionId + '&query=' + encodeURIComponent(message))
+            .then(response => response.text())
+            .then(data => {
+                // Display the response from the Python script
+                appendMessage('AI: ' + data);
+
+                if (!isCurrentSessionAddedToSidebar) {
+                    addSessionToSidebar(currentSessionId);
+                    isCurrentSessionAddedToSidebar = true;
+                }
+            }).catch(error => {
+                console.error('Error:', error);
+            });
         }
 
         function appendMessage(message) {
@@ -108,6 +133,40 @@
             chatBox.scrollTop = chatBox.scrollHeight;
         }
 
+        function loadSessions() {
+            console.log("Loading sessions...");
+
+            fetch('/get-sessions')
+                .then(response => response.json())
+                .then(sessions => {
+                    const sidebar = document.getElementById('sidebar');
+                    sessions.forEach(sessionId => {
+                        const sessionLink = document.createElement('button');
+                        sessionLink.textContent = 'Session ' + sessionId;
+                        sessionLink.onclick = () => loadSession(sessionId);
+                        sidebar.appendChild(sessionLink);
+                    });
+                }).catch(error => {
+                    console.error('Error fetching sessions:', error);
+                });
+        }
+        
+        function loadSession(sessionId) {
+            fetch('/get-session-history?session_id=' + sessionId)
+                .then(response => response.json())
+                .then(history => {
+                    const chatBox = document.getElementById('chat-box');
+                    chatBox.innerHTML = ''; // Clear previous chat
+                    history.forEach(item => {
+                        appendMessage((item.role === 'user' ? 'You: ' : 'AI: ') + item.content);
+                    });
+                    currentSessionId = sessionId; // Update current session ID
+                }).catch(error => {
+                    console.error('Error loading session:', error);
+                });
+            }
+    
+        window.addEventListener('load', loadSessions);
     </script>
 </body>
 </html>

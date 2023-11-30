@@ -43,10 +43,40 @@ func init() {
 	}
 }
 
+func getSessionHistoryHandler(w http.ResponseWriter, r *http.Request) {
+	sessionID := r.URL.Query().Get("session_id")
+
+	rows, err := db.Query("SELECT user_input, ai_response FROM history WHERE session_id = ?", sessionID)
+	if err != nil {
+		http.Error(w, err.Error(), 500)
+		return
+	}
+	defer rows.Close()
+
+	var conversationHistory []map[string]string
+	for rows.Next() {
+		var userInput, aiResponse string
+		if err := rows.Scan(&userInput, aiResponse); err != nil {
+			http.Error(w, err.Error(), 500)
+			return
+		}
+		if userInput != "" {
+			conversationHistory = append(conversationHistory, map[string]string{"role": "user", "content": userInput})
+		}
+		if aiResponse != "" {
+			conversationHistory = append(conversationHistory, map[string]string{"role": "assistant", "content": aiResponse})
+		}
+	}
+
+	json.NewEncoder(w).Encode(conversationHistory)
+}
+
 func main() {
 	http.Handle("/", http.FileServer(http.Dir("./static")))
 	http.HandleFunc("/query", queryHandler)
 	http.HandleFunc("/new-session", newSessionHandler)
+	http.HandleFunc("/get-sessions", getSessionsHandler)
+	http.HandleFunc("/get-session-history", getSessionHistoryHandler)
 	log.Println("Starting server on :8080")
 	log.Fatal(http.ListenAndServe(":8080", nil))
 }
@@ -117,4 +147,26 @@ func newSessionHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	json.NewEncoder(w).Encode(map[string]int64{"session_id": sessionId})
+}
+
+func getSessionsHandler(w http.ResponseWriter, r *http.Request) {
+	// Fetch all session IDs from the sessions table
+	rows, err := db.Query("SELECT session_id FROM sessions ORDER BY session_id DESC")
+	if err != nil {
+		http.Error(w, err.Error(), 500)
+		return
+	}
+	defer rows.Close()
+
+	var sessions []int64
+	for rows.Next() {
+		var sessionID int64
+		if err := rows.Scan(&sessionID); err != nil {
+			http.Error(w, err.Error(), 500)
+			return
+		}
+		sessions = append(sessions, sessionID)
+	}
+
+	json.NewEncoder(w).Encode(sessions)
 }
