@@ -57,7 +57,7 @@ func getSessionHistoryHandler(w http.ResponseWriter, r *http.Request) {
 	var conversationHistory []map[string]string
 	for rows.Next() {
 		var userInput, aiResponse string
-		if err := rows.Scan(&userInput, aiResponse); err != nil {
+		if err := rows.Scan(&userInput, &aiResponse); err != nil {
 			http.Error(w, err.Error(), 500)
 			return
 		}

@@ -104,50 +104,58 @@
         }
 
         function createNewChat() {
-            customLog("Creating new chat session...");
+            customLog("Preparing for new chat...");
+            currentSessionId = null;
+            isCurrentSessionAddedToSidebar = false;
+            document.getElementById('chat-box').innerHTML = ''; // Clear previous chat
+        }
+
+        function addSessionToSidebar(sessionId) {
+            const existingSession = document.getElementById('session-' + sessionId);
+            if (!existingSession) {
+                customLog("Adding session to sidebar:" + sessionId);
+                const sidebar = document.getElementById('sidebar');
+                const sessionLink = document.createElement('button');
+                sessionLink.id = 'session-' + sessionId;
+                sessionLink.textContent = 'Session ' + sessionId;
+                sessionLink.onclick = () => loadSession(sessionId);
+                sidebar.appendChild(sessionLink);
+            }
+        }
+
+        function createAndSendNewChat(message) {
             return fetch('/new-session', { method: 'POST' })
                 .then(response => response.json())
                 .then(data => {
                     currentSessionId = data.session_id;
-                    document.getElementById('chat-box').innerHTML = ''; // Clear previous chat
-                    customLog("New chat session created:" + currentSessionId);
-                    isCurrentSessionAddedToSidebar = false;
-                }).catch(error => {
-                    customLog('Error creating new session:' + error, true);
+                    customLog("New chat session created: " + currentSessionId);
+                    return sendAndDisplayMessage(message);
+                }).then(() => {
+                    appendMessage('You: ' + message);
+                    if (!isCurrentSessionAddedToSidebar) {
+                        addSessionToSidebar(currentSessionId);
+                        isCurrentSessionAddedToSidebar = true;
+                    }
                 });
-        }
-
-        function addSessionToSidebar(sessionId) {
-            customLog("Adding session to sidebar:" + sessionId);
-            const sidebar = document.getElementById('sidebar');
-            const sessionLink = document.createElement('button');
-            sessionLink.textContent = 'Session ' + sessionId;
-            sessionLink.onclick = () => loadSession(sessionId);
-            sidebar.appendChild(sessionLink);
         }
 
         function sendMessage(event) {
             if (event.key === "Enter") {
-                customLog("Sending message...");
                 let inputBox = document.getElementById('input-box');
                 let message = inputBox.value;
                 inputBox.value = '';
 
-                // If no current session, create one before sending the message
                 if (currentSessionId === null) {
-                    createNewChat().then(() => {
-                        sendAndDisplayMessage(message);
-                        appendMessage('You: ' + message);
-                    });
+                    createAndSendNewChat(message);
                 } else {
                     appendMessage('You: ' + message);
                     sendAndDisplayMessage(message);
                 }
             }
         }
+
         
         function appendMessage(message) {
-            customLog("Appending message...");
             let chatBox = document.getElementById('chat-box');
             let messageElement = document.createElement('div');
             messageElement.classList.add('message');
@@ -171,20 +179,14 @@
         
         function sendAndDisplayMessage(message) {
             customLog("Sending and displaying message...");
-            // Send the message to the Go server with the current session ID
-            fetch('/query?session_id=' + currentSessionId + '&query=' + encodeURIComponent(message))
-            .then(response => response.text())
-            .then(data => {
-                // Display the response from the Python script
-                appendMessage('AI: ' + data);
-
-                if (!isCurrentSessionAddedToSidebar) {
-                    addSessionToSidebar(currentSessionId);
-                    isCurrentSessionAddedToSidebar = true;
-                }
-            }).catch(error => {
-                customLog('Error sending message:' + error, true);
-            });
+            // Return the fetch promise
+            return fetch('/query?session_id=' + currentSessionId + '&query=' + encodeURIComponent(message))
+                .then(response => response.text())
+                .then(data => {
+                    appendMessage('AI: ' + data);
+                }).catch(error => {
+                    customLog('Error sending message:' + error, true);
+                });
         }
 
         function loadSessions() {ß
