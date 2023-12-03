@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"os"
 	"os/exec"
 	"strings"
 
@@ -71,8 +72,33 @@ func getSessionHistoryHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(conversationHistory)
 }
 
+func logHandler(w http.ResponseWriter, r *http.Request) {
+	var logObject struct {
+		Message string `json:"message"`
+		IsError bool   `json:"isError"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&logObject); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	logMessage := logObject.Message
+
+	file, err := os.OpenFile("application.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	defer file.Close()
+
+	if _, err := file.WriteString(logMessage + "\n"); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+}
+
 func main() {
 	http.Handle("/", http.FileServer(http.Dir("./static")))
+	http.HandleFunc("/log", logHandler)
 	http.HandleFunc("/query", queryHandler)
 	http.HandleFunc("/new-session", newSessionHandler)
 	http.HandleFunc("/get-sessions", getSessionsHandler)

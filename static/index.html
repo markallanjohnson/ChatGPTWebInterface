@@ -4,17 +4,17 @@
     <title>Chat Interface</title>
     <style>
         body {
-            font-family: Arial, sans-serif;
+            font-family: 'Courier New', monospace;
             margin: 0;
             padding: 0;
             display: flex;
             height: 100vh;
-            background-color: #f0f0f0;
+            background-color: #000;
         }
         #sidebar {
             width: 20%;
             background-color: #333;
-            color: white;
+            color: #0f0;
             overflow-y: auto;
             padding: 10px;
         }
@@ -23,32 +23,58 @@
             display: flex;
             flex-direction: column;
             align-items: stretch;
+            background-color: #000;
         }
         #chat-box {
             flex-grow: 1;
-            border: 1px solid #ddd;
+            border: none;
             padding: 10px;
             overflow-y: auto;
-            background-color: #fff;
+            background-color: #000;
+            color: #0f0;
         }
         #input-box {
             padding: 10px;
-            border: 1px solid #ddd;
-            width: calc(100% - 22px); /* Adjust for padding and border */
+            border: 1px solid #0f0;
+            background-color: #000;
+            color: #0f0;
+            width: calc(100% - 22px);
         }
         #new-chat-button {
             padding: 10px 20px;
-            background-color: #4CAF50;
-            color: white;
-            border: none;
+            background-color: #333;
+            color: #0f0;
+            border: 1px solid #0f0;
             border-radius: 4px;
             margin-bottom: 10px;
+            cursor: pointer;
         }
         #new-chat-button:hover {
-            background-color: #45a049;
+            background-color: #444;
         }
-
-        
+        .message {
+            font-family: 'Courier New', monospace;
+            padding: 5px;
+            margin: 5px 0;
+            border-radius: 4px;
+            background-color: #000;
+            color: #0f0;
+            word-wrap: break-word;
+        }
+        .user-message {
+            text-align: right;
+        }
+        .ai-message {
+            text-align: left;
+        }
+        @media (max-width: 768px) {
+            #sidebar {
+                width: 30%;
+            }
+            #chat-container {
+                width: 70%;
+            }
+        }
     </style>
 </head>
 <body>
@@ -66,20 +92,33 @@
         let currentSessionId = null;
         let isCurrentSessionAddedToSidebar = false;
 
+        function customLog(message, isError = false) {
+            let logObject = { message, isError };
+            fetch('/log', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(logObject),
+            });
+        }
+
         function createNewChat() {
+            customLog("Creating new chat session...");
             return fetch('/new-session', { method: 'POST' })
                 .then(response => response.json())
                 .then(data => {
                     currentSessionId = data.session_id;
                     document.getElementById('chat-box').innerHTML = ''; // Clear previous chat
-                    console.log("New chat session created:", currentSessionId);
+                    customLog("New chat session created:" + currentSessionId);
                     isCurrentSessionAddedToSidebar = false;
                 }).catch(error => {
-                    console.error('Error creating new session:', error);
+                    customLog('Error creating new session:' + error, true);
                 });
         }
 
         function addSessionToSidebar(sessionId) {
+            customLog("Adding session to sidebar:" + sessionId);
             const sidebar = document.getElementById('sidebar');
             const sessionLink = document.createElement('button');
             sessionLink.textContent = 'Session ' + sessionId;
@@ -89,6 +128,7 @@
 
         function sendMessage(event) {
             if (event.key === "Enter") {
+                customLog("Sending message...");
                 let inputBox = document.getElementById('input-box');
                 let message = inputBox.value;
                 inputBox.value = '';
@@ -106,7 +146,31 @@
             }
         }
         
+        function appendMessage(message) {
+            customLog("Appending message...");
+            let chatBox = document.getElementById('chat-box');
+            let messageElement = document.createElement('div');
+            messageElement.classList.add('message');
+
+            if (message.startsWith('You: ')) {
+                messageElement.classList.add('user-message');
+                message = message.replace('You: ', '');
+            } else {
+                messageElement.classList.add('ai-message');
+                message = message.replace('AI: ', '');
+            }
+
+            messageElement.textContent = message;
+            chatBox.appendChild(messageElement);
+
+            // Scroll to the bottom
+            chatBox.scrollTop = chatBox.scrollHeight; 
+
+        
+        }       
+        
         function sendAndDisplayMessage(message) {
+            customLog("Sending and displaying message...");
             // Send the message to the Go server with the current session ID
             fetch('/query?session_id=' + currentSessionId + '&query=' + encodeURIComponent(message))
             .then(response => response.text())
@@ -119,22 +183,12 @@
                     isCurrentSessionAddedToSidebar = true;
                 }
             }).catch(error => {
-                console.error('Error:', error);
+                customLog('Error sending message:' + error, true);
             });
         }
 
-        function appendMessage(message) {
-            let chatBox = document.getElementById('chat-box');
-            let messageElement = document.createElement('div');
-            messageElement.textContent = message;
-            chatBox.appendChild(messageElement);
-
-            // Scroll to the bottom
-            chatBox.scrollTop = chatBox.scrollHeight;
-        }
-
-        function loadSessions() {
-            console.log("Loading sessions...");
+        function loadSessions() {ß
+            customLog("Loading sessions...");
 
             fetch('/get-sessions')
                 .then(response => response.json())
@@ -147,11 +201,12 @@
                         sidebar.appendChild(sessionLink);
                     });
                 }).catch(error => {
-                    console.error('Error fetching sessions:', error);
+                    customLog('Error fetching sessions:' + error, true);
                 });
         }
         
         function loadSession(sessionId) {
+            customLog("Loading session:" + sessionId);
             fetch('/get-session-history?session_id=' + sessionId)
                 .then(response => response.json())
                 .then(history => {
@@ -162,9 +217,9 @@
                     });
                     currentSessionId = sessionId; // Update current session ID
                 }).catch(error => {
-                    console.error('Error loading session:', error);
+                    customLog('Error loading session:' + error, true);
                 });
-            }
+        }
     
         window.addEventListener('load', loadSessions);
     </script>
