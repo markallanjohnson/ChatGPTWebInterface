@@ -17,6 +17,8 @@
             color: #0f0;
             overflow-y: auto;
             padding: 10px;
+            display: flex;
+            flex-direction: column;
         }
         #chat-container {
             width: 80%;
@@ -111,15 +113,25 @@
         }
 
         function addSessionToSidebar(sessionId) {
-            const existingSession = document.getElementById('session-' + sessionId);
-            if (!existingSession) {
-                customLog("Adding session to sidebar:" + sessionId);
-                const sidebar = document.getElementById('sidebar');
-                const sessionLink = document.createElement('button');
-                sessionLink.id = 'session-' + sessionId;
-                sessionLink.textContent = 'Session ' + sessionId;
-                sessionLink.onclick = () => loadSession(sessionId);
-                sidebar.appendChild(sessionLink);
+            const sidebar = document.getElementById('sidebar');
+            const sessionLink = document.createElement('button');
+            sessionLink.id = 'session-' + sessionId;
+            sessionLink.textContent = 'Session ' + sessionId;
+            sessionLink.onclick = () => loadSession(sessionId);
+            
+            // Find the Chat Histories heading by its text content
+            const chatHistoriesHeading = Array.from(sidebar.childNodes).find(node => node.nodeType === Node.ELEMENT_NODE && node.textContent === "Chat Histories");
+            
+            // Insert the new session link after the Chat Histories heading
+            if (chatHistoriesHeading) {
+                chatHistoriesHeading.insertAdjacentElement('afterend', sessionLink);
+            } else {
+                // If for some reason the heading isn't found, just prepend the link to the sidebar
+                if (sidebar.firstChild) {
+                    sidebar.insertBefore(sessionLink, sidebar.firstChild);
+                } else {
+                    sidebar.appendChild(sessionLink);
+                }
             }
         }
 
