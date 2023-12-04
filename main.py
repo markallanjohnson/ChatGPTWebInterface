@@ -25,6 +25,7 @@ def query_openai(client, model, conversation_history):
 
 def main():
     client = get_openai_client(api_key=os.environ["OPENAI_API_KEY"])
+    #model = "gpt-4-vision-preview"
     model = "gpt-4-1106-preview"
 
     # Read the conversation history from stdin

@@ -131,7 +131,6 @@
                     customLog("New chat session created: " + currentSessionId);
                     return sendAndDisplayMessage(message);
                 }).then(() => {
-                    appendMessage('You: ' + message);
                     if (!isCurrentSessionAddedToSidebar) {
                         addSessionToSidebar(currentSessionId);
                         isCurrentSessionAddedToSidebar = true;
@@ -144,11 +143,12 @@
                 let inputBox = document.getElementById('input-box');
                 let message = inputBox.value;
                 inputBox.value = '';
+                
+                appendMessage('You: ' + message);
 
                 if (currentSessionId === null) {
                     createAndSendNewChat(message);
                 } else {
-                    appendMessage('You: ' + message);
                     sendAndDisplayMessage(message);
                 }
             }
