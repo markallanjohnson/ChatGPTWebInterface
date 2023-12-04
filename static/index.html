@@ -11,6 +11,18 @@
             height: 100vh;
             background-color: #000;
         }
+        .button-style {
+            padding: 10px 20px;
+            background-color: #333;
+            color: #0f0;
+            border: 1px solid #0f0;
+            border-radius: 4px;
+            margin-bottom: 10px;
+            cursor: pointer;
+        }
+        .button-style:hover {
+            background-color: #444;
+        }
         #sidebar {
             width: 20%;
             background-color: #333;
@@ -116,24 +128,19 @@
             const sidebar = document.getElementById('sidebar');
             const sessionLink = document.createElement('button');
             sessionLink.id = 'session-' + sessionId;
+            sessionLink.className = 'button-style'; // Use the class for styling
             sessionLink.textContent = 'Session ' + sessionId;
             sessionLink.onclick = () => loadSession(sessionId);
             
-            // Find the Chat Histories heading by its text content
-            const chatHistoriesHeading = Array.from(sidebar.childNodes).find(node => node.nodeType === Node.ELEMENT_NODE && node.textContent === "Chat Histories");
-            
-            // Insert the new session link after the Chat Histories heading
-            if (chatHistoriesHeading) {
-                chatHistoriesHeading.insertAdjacentElement('afterend', sessionLink);
+            // Insert the new session link in the correct place
+            const chatHistoriesHeading = sidebar.querySelector('h2');
+            if (chatHistoriesHeading.nextSibling) {
+                sidebar.insertBefore(sessionLink, chatHistoriesHeading.nextSibling);
             } else {
-                // If for some reason the heading isn't found, just prepend the link to the sidebar
-                if (sidebar.firstChild) {
-                    sidebar.insertBefore(sessionLink, sidebar.firstChild);
-                } else {
-                    sidebar.appendChild(sessionLink);
-                }
+                sidebar.appendChild(sessionLink);
             }
         }
+
 
         function createAndSendNewChat(message) {
             return fetch('/new-session', { method: 'POST' })
@@ -210,6 +217,7 @@
                     const sidebar = document.getElementById('sidebar');
                     sessions.forEach(sessionId => {
                         const sessionLink = document.createElement('button');
+                        sessionLink.className = 'button-style'; // Assign the class here
                         sessionLink.textContent = 'Session ' + sessionId;
                         sessionLink.onclick = () => loadSession(sessionId);
                         sidebar.appendChild(sessionLink);
