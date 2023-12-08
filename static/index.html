@@ -89,6 +89,28 @@
                 width: 70%;
             }
         }
+        @keyframes spinner {
+        to {transform: rotate(360deg);}
+        }
+        .loading-spinner {
+        border: 4px solid #333; /* Light grey */
+        border-top: 4px solid #0f0; /* Green */
+        border-radius: 50%;
+        width: 20px;
+        height: 20px;
+        animation: spinner 1s linear infinite;
+        }
+        .code-block {
+            background: #333; /* Dark background for better contrast */
+            color: #0f0; /* Light text color */
+            padding: 10px; /* Padding inside the code block */
+            margin: 10px 0; /* Margin around the code block */
+            white-space: pre-wrap; /* Preserves spaces and line breaks */
+            overflow-x: auto; /* Adds horizontal scrollbar if needed */
+            display: block; /* Ensures the code block is full-width */
+            font-family: 'Courier New', monospace; /* Monospace font for code */
+            border-radius: 4px; /* Rounded corners for the code block */
+        }
     </style>
 </head>
 <body>
@@ -98,6 +120,9 @@
         <!-- Chat history links will go here -->
     </div>
     <div id="chat-container">
+        <div id="loadingIndicator" style="display: none;">
+            <div class="loading-spinner"></div>
+          </div>          
         <div id="chat-box"></div>
         <input type="text" id="input-box" placeholder="Type your message here..." onkeypress="sendMessage(event)">
     </div>
@@ -141,7 +166,6 @@
             }
         }
 
-
         function createAndSendNewChat(message) {
             return fetch('/new-session', { method: 'POST' })
                 .then(response => response.json())
@@ -164,6 +188,7 @@
                 inputBox.value = '';
                 
                 appendMessage('You: ' + message);
+                showLoadingIndicator(true); // Show loading indicator
 
                 if (currentSessionId === null) {
                     createAndSendNewChat(message);
@@ -172,29 +197,49 @@
                 }
             }
         }
-
         
         function appendMessage(message) {
             let chatBox = document.getElementById('chat-box');
-            let messageElement = document.createElement('div');
-            messageElement.classList.add('message');
 
-            if (message.startsWith('You: ')) {
-                messageElement.classList.add('user-message');
-                message = message.replace('You: ', '');
-            } else {
-                messageElement.classList.add('ai-message');
-                message = message.replace('AI: ', '');
+            // Check if the message contains a code block
+            const codeBlockRegex = /```[\s\S]*?```/g;
+            let match;
+            let lastIndex = 0;
+
+            while ((match = codeBlockRegex.exec(message)) !== null) {
+                // Add text before code block
+                let textBeforeCode = message.substring(lastIndex, match.index);
+                if (textBeforeCode) {
+                    let textNode = document.createTextNode(textBeforeCode);
+                    chatBox.appendChild(textNode);
+                }
+
+                // Create a pre element for the code block
+                let preElement = document.createElement('pre');
+                preElement.className = 'code-block';
+
+                // Extract the content within the backticks
+                let codeContent = match[0].slice(3, -3); // remove the backticks
+                let codeElement = document.createElement('code');
+                codeElement.textContent = codeContent;
+
+                preElement.appendChild(codeElement);
+                chatBox.appendChild(preElement);
+
+                lastIndex = match.index + match[0].length;
             }
 
-            messageElement.textContent = message;
-            chatBox.appendChild(messageElement);
+            // Add any remaining text after the last code block
+            if (lastIndex < message.length) {
+                let remainingText = message.substring(lastIndex);
+                let textNode = document.createTextNode(remainingText);
+                chatBox.appendChild(textNode);
+            }
 
-            // Scroll to the bottom
-            chatBox.scrollTop = chatBox.scrollHeight; 
-
-        
-        }       
+            // Scroll to the bottom of the chat box
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+ 
         
         function sendAndDisplayMessage(message) {
             customLog("Sending and displaying message...");
@@ -202,11 +247,23 @@
             return fetch('/query?session_id=' + currentSessionId + '&query=' + encodeURIComponent(message))
                 .then(response => response.text())
                 .then(data => {
+                    showLoadingIndicator(false); // Hide loading indicator
                     appendMessage('AI: ' + data);
                 }).catch(error => {
+                    showLoadingIndicator(false); // Hide loading indicator
                     customLog('Error sending message:' + error, true);
                 });
         }
+
+        function showLoadingIndicator(show) {
+            let loadingIndicator = document.getElementById('loadingIndicator');
+            if (show) {
+                loadingIndicator.style.display = 'block';
+            } else {
+                loadingIndicator.style.display = 'none';
+            }
+        }
+
 
         function loadSessions() {
             customLog("Loading sessions...");
