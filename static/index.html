@@ -199,10 +199,25 @@
         }
         
         function applyTextStyles(text) {
-            // Replace markdown headings with HTML headings
+            // Headers
+            text = text.replace(/(###\s(.*))/g, '<h3>$2</h3>');
+            text = text.replace(/(##\s(.*))/g, '<h2>$2</h2>');
+            text = text.replace(/(#\s(.*))/g, '<h1>$2</h1>');
+
+            // Lists
+            text = text.replace(/(\n- (.*))/g, '<li>$2</li>').replace(/<li>(.*?)<\/li>/g, '<ul>$&</ul>');
+            text = text.replace(/(\n\d+\.\s(.*))/g, '<li>$2</li>').replace(/<li>(.*?)<\/li>/g, '<ol>$&</ol>');
+            
+            // Links
+            text = text.replace(/(http[s]?:\/\/[^\s]+)/g, '<a href="$1">$1</a>');
+
+            // Line Breaks
+            text = text.replace(/\n\n/g, '<p></p>');
+            
+            // Bold and Italics
             text = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-            // Replace markdown bold syntax with HTML bold tags
             text = text.replace(/\*(.*?)\*/g, '<em>$1</em>');
+            
             return text;
         }
 
