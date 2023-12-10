@@ -213,10 +213,12 @@
 
             // Line Breaks
             text = text.replace(/\n\n/g, '<p></p>');
-            
+            text = text.replace(/\n/g, '<br>');
+
             // Bold and Italics
             text = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
             text = text.replace(/\*(.*?)\*/g, '<em>$1</em>');
+            // text = text.replace(/```[\s\S]*?```/g, '<code-block>$1</code-block>');
             
             return text;
         }
@@ -265,7 +267,9 @@
                 .then(response => response.text())
                 .then(data => {
                     showLoadingIndicator(false); // Hide loading indicator
-                    appendMessage('AI: ' + data);
+                    appendMessage('\n');
+                    appendMessage('\nAI: ' + data);
+                    appendMessage('\n');
                 }).catch(error => {
                     showLoadingIndicator(false); // Hide loading indicator
                     customLog('Error sending message:' + error, true);
