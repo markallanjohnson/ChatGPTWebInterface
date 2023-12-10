@@ -198,20 +198,26 @@
             }
         }
         
+        function applyTextStyles(text) {
+            // Replace markdown headings with HTML headings
+            text = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+            // Replace markdown bold syntax with HTML bold tags
+            text = text.replace(/\*(.*?)\*/g, '<em>$1</em>');
+            return text;
+        }
+
         function appendMessage(message) {
             let chatBox = document.getElementById('chat-box');
-
-            // Check if the message contains a code block
             const codeBlockRegex = /```[\s\S]*?```/g;
             let match;
             let lastIndex = 0;
+            let formattedMessage = '';
 
             while ((match = codeBlockRegex.exec(message)) !== null) {
                 // Add text before code block
                 let textBeforeCode = message.substring(lastIndex, match.index);
                 if (textBeforeCode) {
-                    let textNode = document.createTextNode(textBeforeCode);
-                    chatBox.appendChild(textNode);
+                    formattedMessage += applyTextStyles(textBeforeCode);
                 }
 
                 // Create a pre element for the code block
@@ -220,11 +226,7 @@
 
                 // Extract the content within the backticks
                 let codeContent = match[0].slice(3, -3); // remove the backticks
-                let codeElement = document.createElement('code');
-                codeElement.textContent = codeContent;
-
-                preElement.appendChild(codeElement);
-                chatBox.appendChild(preElement);
+                formattedMessage += `<pre class="code-block"><code>${codeContent}</code></pre>`;
 
                 lastIndex = match.index + match[0].length;
             }
@@ -232,10 +234,10 @@
             // Add any remaining text after the last code block
             if (lastIndex < message.length) {
                 let remainingText = message.substring(lastIndex);
-                let textNode = document.createTextNode(remainingText);
-                chatBox.appendChild(textNode);
+                formattedMessage += applyTextStyles(remainingText);
             }
 
+            chatBox.innerHTML += formattedMessage;
             // Scroll to the bottom of the chat box
             chatBox.scrollTop = chatBox.scrollHeight;
         }
