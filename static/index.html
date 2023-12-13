@@ -187,7 +187,7 @@
                 let message = inputBox.value;
                 inputBox.value = '';
                 
-                appendMessage('You: ' + message);
+                appendMessage('You: ' + message, 'user');
                 showLoadingIndicator(true); // Show loading indicator
 
                 if (currentSessionId === null) {
@@ -231,29 +231,21 @@
             let formattedMessage = '';
 
             // Insert a line break if the last message wasn't from the same sender
-            if (chatBox.lastChild && chatBox.lastChild.className !== 'message ' + sender) {
-                chatBox.appendChild(document.createElement('br'));
+            let lastChild = chatBox.lastElementChild;
+            if (lastChild && !lastChild.classList.contains(sender + '-message')) {
+                formattedMessage += '<br>'; // Add a single line break
             }
 
             while ((match = codeBlockRegex.exec(message)) !== null) {
-                // Add text before code block
                 let textBeforeCode = message.substring(lastIndex, match.index);
                 if (textBeforeCode) {
                     formattedMessage += applyTextStyles(textBeforeCode);
                 }
-
-                // Create a pre element for the code block
-                let preElement = document.createElement('pre');
-                preElement.className = 'code-block';
-
-                // Extract the content within the backticks
-                let codeContent = match[0].slice(3, -3); // remove the backticks
+                let codeContent = match[0].slice(3, -3);
                 formattedMessage += `<pre class="code-block"><code>${codeContent}</code></pre>`;
-
                 lastIndex = match.index + match[0].length;
             }
 
-            // Add any remaining text after the last code block
             if (lastIndex < message.length) {
                 let remainingText = message.substring(lastIndex);
                 formattedMessage += applyTextStyles(remainingText);
@@ -261,16 +253,14 @@
 
             // Append the formatted message to the chat box
             let messageDiv = document.createElement('div');
-            messageDiv.className = 'message ' + sender;
+            messageDiv.className = 'message ' + sender + '-message'; // Ensure to use sender-message for styling
             messageDiv.innerHTML = formattedMessage;
             chatBox.appendChild(messageDiv);
-
-            // Always append a line break after the message
-            chatBox.appendChild(document.createElement('br'));
 
             // Scroll to the bottom of the chat box
             chatBox.scrollTop = chatBox.scrollHeight;
         }
+
 
  
         
@@ -282,7 +272,7 @@
                 .then(data => {
                     showLoadingIndicator(false); // Hide loading indicator
                     //appendMessage('\n');
-                    appendMessage('\nAI: ' + data);
+                    appendMessage('AI: ' + data, 'ai');
                 }).catch(error => {
                     showLoadingIndicator(false); // Hide loading indicator
                     customLog('Error sending message:' + error, true);
@@ -327,13 +317,9 @@
                     chatBox.innerHTML = ''; // Clear previous chat
 
                     // Process each message and append it with a line break
-                    history.forEach((item, index) => {
-                        // Add a line break after each message except the last one
-                        let messageContent = (item.role === 'user' ? 'You: ' : 'AI: ') + item.content;
-                        let messageWithBreak = messageContent + (index < history.length - 1 ? '<br>' : '');
-                        appendMessage(messageWithBreak);
+                    history.forEach(item => {
+                        appendMessage(item.content, item.role === 'user' ? 'user' : 'ai');
                     });
-
                     currentSessionId = sessionId; // Update current session ID
                 }).catch(error => {
                     customLog('Error loading session:' + error, true);
