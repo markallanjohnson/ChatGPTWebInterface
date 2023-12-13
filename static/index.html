@@ -223,12 +223,17 @@
             return text;
         }
 
-        function appendMessage(message) {
+        function appendMessage(message, sender) {
             let chatBox = document.getElementById('chat-box');
             const codeBlockRegex = /```[\s\S]*?```/g;
             let match;
             let lastIndex = 0;
             let formattedMessage = '';
+
+            // Insert a line break if the last message wasn't from the same sender
+            if (chatBox.lastChild && chatBox.lastChild.className !== 'message ' + sender) {
+                chatBox.appendChild(document.createElement('br'));
+            }
 
             while ((match = codeBlockRegex.exec(message)) !== null) {
                 // Add text before code block
@@ -254,10 +259,19 @@
                 formattedMessage += applyTextStyles(remainingText);
             }
 
-            chatBox.innerHTML += formattedMessage;
+            // Append the formatted message to the chat box
+            let messageDiv = document.createElement('div');
+            messageDiv.className = 'message ' + sender;
+            messageDiv.innerHTML = formattedMessage;
+            chatBox.appendChild(messageDiv);
+
+            // Always append a line break after the message
+            chatBox.appendChild(document.createElement('br'));
+
             // Scroll to the bottom of the chat box
             chatBox.scrollTop = chatBox.scrollHeight;
         }
+
  
         
         function sendAndDisplayMessage(message) {
@@ -267,9 +281,8 @@
                 .then(response => response.text())
                 .then(data => {
                     showLoadingIndicator(false); // Hide loading indicator
-                    appendMessage('\n');
+                    //appendMessage('\n');
                     appendMessage('\nAI: ' + data);
-                    appendMessage('\n');
                 }).catch(error => {
                     showLoadingIndicator(false); // Hide loading indicator
                     customLog('Error sending message:' + error, true);
@@ -312,9 +325,15 @@
                 .then(history => {
                     const chatBox = document.getElementById('chat-box');
                     chatBox.innerHTML = ''; // Clear previous chat
-                    history.forEach(item => {
-                        appendMessage((item.role === 'user' ? 'You: ' : 'AI: ') + item.content);
+
+                    // Process each message and append it with a line break
+                    history.forEach((item, index) => {
+                        // Add a line break after each message except the last one
+                        let messageContent = (item.role === 'user' ? 'You: ' : 'AI: ') + item.content;
+                        let messageWithBreak = messageContent + (index < history.length - 1 ? '<br>' : '');
+                        appendMessage(messageWithBreak);
                     });
+
                     currentSessionId = sessionId; // Update current session ID
                 }).catch(error => {
                     customLog('Error loading session:' + error, true);
