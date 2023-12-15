@@ -111,6 +111,42 @@
             font-family: 'Courier New', monospace; /* Monospace font for code */
             border-radius: 4px; /* Rounded corners for the code block */
         }
+
+        .dropbtn {
+            background-color: #333;
+            color: #0f0;
+            padding: 10px;
+            border: none;
+            cursor: pointer;
+        }
+
+        .dropbtn:hover, .dropbtn:focus {
+            background-color: #444;
+        }
+
+        .dropdown {
+            position: relative;
+            display: inline-block;
+        }
+
+        .dropdown-content {
+            display: none;
+            position: absolute;
+            background-color: #333;
+            min-width: 160px;
+            box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
+            z-index: 1;
+        }
+
+        /* Dropdown item styles */
+        .dropdown-content a {
+            color: #0f0;
+            padding: 12px 16px;
+            text-decoration: none;
+            display: block;
+        }
+
+        .dropdown-content a:hover {background-color: #555;}
     </style>
 </head>
 <body>
@@ -151,20 +187,62 @@
 
         function addSessionToSidebar(sessionId) {
             const sidebar = document.getElementById('sidebar');
-            const sessionLink = document.createElement('button');
-            sessionLink.id = 'session-' + sessionId;
-            sessionLink.className = 'button-style'; // Use the class for styling
-            sessionLink.textContent = 'Session ' + sessionId;
-            sessionLink.onclick = () => loadSession(sessionId);
-            
-            // Insert the new session link in the correct place
+            const sessionDiv = document.createElement('div');
+            sessionDiv.className = 'session-entry';
+
+            const sessionButton = document.createElement('button');
+            sessionButton.textContent = 'Session ' + sessionId;
+            sessionButton.className = 'button-style';
+            sessionButton.onclick = () => loadSession(sessionId);
+
+            // Create a dropdown button
+            const dropdownButton = document.createElement('button');
+            dropdownButton.className = 'button-style dropbtn';
+            dropdownButton.innerHTML = '...';
+            dropdownButton.onclick = function(event) {
+            event.stopPropagation();
+            this.nextElementSibling.classList.toggle('show');
+            };
+
+            // Create a dropdown content div
+            const dropdownContent = document.createElement('div');
+            dropdownContent.className = 'dropdown-content';
+
+            // Add menu items here
+            const deleteButton = document.createElement('a');
+            deleteButton.href = '#';
+            deleteButton.textContent = 'Delete Chat';
+            // Add the delete functionality here
+            dropdownContent.appendChild(deleteButton);
+
+            // Append all parts to the sessionDiv
+            sessionDiv.appendChild(sessionButton);
+            sessionDiv.appendChild(dropdownButton);
+            sessionDiv.appendChild(dropdownContent);
+
+            const firstSessionEntry = sidebar.querySelector('.session-entry');
+
             const chatHistoriesHeading = sidebar.querySelector('h2');
-            if (chatHistoriesHeading.nextSibling) {
-                sidebar.insertBefore(sessionLink, chatHistoriesHeading.nextSibling);
+            if (firstSessionEntry) {
+                sidebar.insertBefore(sessionDiv, firstSessionEntry);
             } else {
-                sidebar.appendChild(sessionLink);
+                sidebar.insertBefore(sessionDiv, chatHistoriesHeading.nextSibling);
             }
+
+            sidebar.insertBefore(sessionDiv, chatHistoriesHeading.nextSibling);
         }
+
+        window.onclick = function(event) {
+            if (!event.target.matches('.dropbtn')) {
+            var dropdowns = document.getElementsByClassName("dropdown-content");
+            for (var i = 0; i < dropdowns.length; i++) {
+                var openDropdown = dropdowns[i];
+                if (openDropdown.classList.contains('show')) {
+                openDropdown.classList.remove('show');
+                }
+            }
+            }
+        };
 
         function createAndSendNewChat(message) {
             return fetch('/new-session', { method: 'POST' })
@@ -195,6 +273,7 @@
                 } else {
                     sendAndDisplayMessage(message);
                 }
+                chatBox.scrollTop = chatBox.scrollHeight;
             }
         }
         
@@ -260,9 +339,6 @@
             // Scroll to the bottom of the chat box
             chatBox.scrollTop = chatBox.scrollHeight;
         }
-
-
- 
         
         function sendAndDisplayMessage(message) {
             customLog("Sending and displaying message...");
@@ -296,12 +372,9 @@
                 .then(response => response.json())
                 .then(sessions => {
                     const sidebar = document.getElementById('sidebar');
-                    sessions.forEach(sessionId => {
-                        const sessionLink = document.createElement('button');
-                        sessionLink.className = 'button-style'; // Assign the class here
-                        sessionLink.textContent = 'Session ' + sessionId;
-                        sessionLink.onclick = () => loadSession(sessionId);
-                        sidebar.appendChild(sessionLink);
+                    const chatHistoriesHeading = sidebar.querySelector('h2');
+                    sessions.reverse().forEach(sessionId => {
+                        addSessionToSidebar(sessionId);
                     });
                 }).catch(error => {
                     customLog('Error fetching sessions:' + error, true);
