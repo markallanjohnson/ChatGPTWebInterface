@@ -103,6 +103,7 @@ func main() {
 	http.HandleFunc("/new-session", newSessionHandler)
 	http.HandleFunc("/get-sessions", getSessionsHandler)
 	http.HandleFunc("/get-session-history", getSessionHistoryHandler)
+	http.HandleFunc("/delete-session", deleteSessionHandler)
 	log.Println("Starting server on :8080")
 	log.Fatal(http.ListenAndServe(":8080", nil))
 }
@@ -195,4 +196,19 @@ func getSessionsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	json.NewEncoder(w).Encode(sessions)
+}
+
+func deleteSessionHandler(w http.ResponseWriter, r *http.Request) {
+	sessionID := r.URL.Query().Get("session_id")
+	_, err := db.Exec("DELETE FROM history WHERE session_id = ?", sessionID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	_, err = db.Exec("DELETE FROM sessions WHERE session_id = ?", sessionID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
 }

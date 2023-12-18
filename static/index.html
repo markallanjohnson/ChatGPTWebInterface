@@ -138,7 +138,6 @@
             z-index: 1;
         }
 
-        /* Dropdown item styles */
         .dropdown-content a {
             color: #0f0;
             padding: 12px 16px;
@@ -147,6 +146,8 @@
         }
 
         .dropdown-content a:hover {background-color: #555;}
+
+        .show {display: block;}
     </style>
 </head>
 <body>
@@ -200,8 +201,12 @@
             dropdownButton.className = 'button-style dropbtn';
             dropdownButton.innerHTML = '...';
             dropdownButton.onclick = function(event) {
-            event.stopPropagation();
-            this.nextElementSibling.classList.toggle('show');
+                event.stopPropagation();
+                var dropdownContent = this.nextElementSibling;
+                var rect = this.getBoundingClientRect();
+                dropdownContent.style.left = rect.left + "px";
+                dropdownContent.style.top = rect.bottom + "px";
+                dropdownContent.classList.toggle("show");
             };
 
             // Create a dropdown content div
@@ -214,6 +219,10 @@
             deleteButton.textContent = 'Delete Chat';
             // Add the delete functionality here
             dropdownContent.appendChild(deleteButton);
+            deleteButton.onclick = function(event) {
+                event.preventDefault();
+                deleteChat(sessionId, sessionDiv);
+            }
 
             // Append all parts to the sessionDiv
             sessionDiv.appendChild(sessionButton);
@@ -221,7 +230,6 @@
             sessionDiv.appendChild(dropdownContent);
 
             const firstSessionEntry = sidebar.querySelector('.session-entry');
-
             const chatHistoriesHeading = sidebar.querySelector('h2');
             if (firstSessionEntry) {
                 sidebar.insertBefore(sessionDiv, firstSessionEntry);
@@ -398,6 +406,27 @@
                     customLog('Error loading session:' + error, true);
                 });
         }
+
+        function deleteChat(sessionId, sessionDiv) {
+            fetch('/delete-session?session_id=' + sessionId, { method: 'DELETE' })
+            .then(response => {
+                if (response.ok) {
+                    // Remove the session from the sidebar
+                    sessionDiv.remove();
+                    // If the current chat is the one being deleted, clear the chat window
+                    if (currentSessionId == sessionId) {
+                        currentSessionId = null; // Reset the current session ID
+                        document.getElementById('chat-box').innerHTML = ''; // Clear the chat window
+                    }
+                    customLog("Chat session " + sessionId + " deleted.");
+                } else {
+                    customLog("Failed to delete chat session " + sessionId, true);
+                }
+            }).catch(error => {
+                customLog("Error: " + error, true);
+            });
+        }
+
     
         window.addEventListener('load', loadSessions);
     </script>
