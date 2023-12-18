@@ -11,15 +11,6 @@
             height: 100vh;
             background-color: #000;
         }
-        .button-style {
-            padding: 10px 20px;
-            background-color: #333;
-            color: #0f0;
-            border: 1px solid #0f0;
-            border-radius: 4px;
-            margin-bottom: 10px;
-            cursor: pointer;
-        }
         .button-style:hover {
             background-color: #444;
         }
@@ -28,7 +19,7 @@
             background-color: #333;
             color: #0f0;
             overflow-y: auto;
-            padding: 10px;
+            padding: 10px 5px;
             display: flex;
             flex-direction: column;
         }
@@ -111,33 +102,54 @@
             font-family: 'Courier New', monospace; /* Monospace font for code */
             border-radius: 4px; /* Rounded corners for the code block */
         }
-
         .dropbtn {
-            background-color: #333;
+            background-color: transparent;
+            position: absolute;
+            right: 0; /* Align to the far right */
+            top: 0;
             color: #0f0;
-            padding: 10px;
+            padding: 10px 3px;
             border: none;
             cursor: pointer;
+            z-index: 2; /* Ensure it's above other content */
+            transform: none;
         }
-
+        .session-entry {
+            position: relative;
+            padding: 10px 20px; /* Adjust padding as needed */
+            margin-bottom: 5px;
+            border: 1px solid #0f0;
+            border-radius: 4px;
+            display: flex;
+            justify-content: space-between; /* This will push content to each end */
+            align-items: center;
+            background-color: #333;
+        }
+        .button-style {
+            background-color: transparent;
+            color: #0f0;
+            border: none;
+            text-align: left;
+            padding: 10px 0px; /* Adjust padding to match the height of .dropbtn */
+            margin: 0;
+            flex-grow: 1; /* Ensures the button expands to fill the space */
+            cursor: pointer;
+        }               
         .dropbtn:hover, .dropbtn:focus {
             background-color: #444;
         }
-
         .dropdown {
             position: relative;
             display: inline-block;
         }
-
         .dropdown-content {
             display: none;
             position: absolute;
             background-color: #333;
-            min-width: 160px;
+            min-width: 100px;
             box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
             z-index: 1;
         }
-
         .dropdown-content a {
             color: #0f0;
             padding: 12px 16px;
@@ -198,45 +210,68 @@
 
             // Create a dropdown button
             const dropdownButton = document.createElement('button');
-            dropdownButton.className = 'button-style dropbtn';
+            dropdownButton.className = 'dropbtn';
             dropdownButton.innerHTML = '...';
+            // Align the dropdown to the right
+            dropdownButton.style.position = 'absolute';
+            dropdownButton.style.right = '0';
+            dropdownButton.style.top = '0';
+            dropdownButton.style.transform = 'translateY(0%)';
             dropdownButton.onclick = function(event) {
                 event.stopPropagation();
+
+                // Close all other dropdowns 
+                var dropdowns = document.getElementsByClassName("dropdown-content");
+                for (var i = 0; i < dropdowns.length; i++) {
+                    var openDropdown = dropdowns[i];
+                    if (openDropdown.classList.contains('show')) {
+                    openDropdown.classList.remove('show');
+                    }
+                }
+                
+                // Toggle the dropdown content
                 var dropdownContent = this.nextElementSibling;
-                var rect = this.getBoundingClientRect();
-                dropdownContent.style.left = rect.left + "px";
-                dropdownContent.style.top = rect.bottom + "px";
-                dropdownContent.classList.toggle("show");
+                dropdownContent.classList.toggle('show');
+
+                // Calculate and set the position of dropdownContent
+                var buttonRect = this.getBoundingClientRect();
+                
+                // Set top style to align with the bottom of the dropdown button
+                dropdownContent.style.top = `${buttonRect.height}px`; // This aligns the top of the dropdown with the bottom of the button
+
+                // Set left style to align with the left of the dropdown button
+                // If the button is not at the very right edge of its container, you might need to adjust this value
+                dropdownContent.style.left = '0px'; // This aligns the left of the dropdown with the left of the button
             };
+
 
             // Create a dropdown content div
             const dropdownContent = document.createElement('div');
             dropdownContent.className = 'dropdown-content';
+            // Adjust the styling for dropdown content
+            dropdownContent.style.minWidth = '100%'; // Make dropdown the same width as the session button
+            dropdownContent.style.left = '0'; // 
+            dropdownContent.style.top = '100%';
 
             // Add menu items here
             const deleteButton = document.createElement('a');
             deleteButton.href = '#';
             deleteButton.textContent = 'Delete Chat';
-            // Add the delete functionality here
-            dropdownContent.appendChild(deleteButton);
             deleteButton.onclick = function(event) {
                 event.preventDefault();
                 deleteChat(sessionId, sessionDiv);
-            }
+            };
+
+            // Append deleteButton to dropdownContent
+            dropdownContent.appendChild(deleteButton);
 
             // Append all parts to the sessionDiv
             sessionDiv.appendChild(sessionButton);
             sessionDiv.appendChild(dropdownButton);
             sessionDiv.appendChild(dropdownContent);
 
-            const firstSessionEntry = sidebar.querySelector('.session-entry');
+            // Finally, append the sessionDiv to the sidebar or before the first session entry
             const chatHistoriesHeading = sidebar.querySelector('h2');
-            if (firstSessionEntry) {
-                sidebar.insertBefore(sessionDiv, firstSessionEntry);
-            } else {
-                sidebar.insertBefore(sessionDiv, chatHistoriesHeading.nextSibling);
-            }
-
             sidebar.insertBefore(sessionDiv, chatHistoriesHeading.nextSibling);
         }
 
