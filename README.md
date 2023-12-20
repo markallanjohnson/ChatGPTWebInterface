@@ -30,12 +30,12 @@ Ensure SQLite is installed on your system. The Go application will automatically
 
 You will need to export your OpenAI API key as an environment variable:
 
-- export OPENAI_API_KEY='your_api_key_here'
+'export OPENAI_API_KEY='your_api_key_here''
 
 
 4. **Install Python Dependencies:**
 
-- pip install -r requirements.txt
+'pip install -r requirements.txt'
 
 
 ## Running the Application
@@ -44,7 +44,7 @@ You will need to export your OpenAI API key as an environment variable:
 
 From the root directory of the project, run:
 
-- go run main.go
+'go run main.go'
 
 
 This will start the server on `localhost:8080`.
