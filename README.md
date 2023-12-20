@@ -30,7 +30,9 @@ Ensure SQLite is installed on your system. The Go application will automatically
 
 You will need to export your OpenAI API key as an environment variable:
 
-`export OPENAI_API_KEY='your_api_key_here'`
+```bash
+export OPENAI_API_KEY='your_api_key_here'
+```
 
 
 4. **Install Python Dependencies:**
