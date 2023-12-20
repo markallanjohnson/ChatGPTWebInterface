@@ -36,8 +36,9 @@ export OPENAI_API_KEY='your_api_key_here'
 
 
 4. **Install Python Dependencies:**
-
-`pip install -r requirements.txt`
+'''bash
+pip install -r requirements.txt
+'''
 
 
 ## Running the Application
@@ -46,8 +47,9 @@ export OPENAI_API_KEY='your_api_key_here'
 
 From the root directory of the project, run:
 
-`go run main.go`
-
+'''bash
+go run main.go`
+'''
 
 This will start the server on `localhost:8080`.
 
