@@ -23,7 +23,8 @@ func init() {
 
 	_, err = db.Exec(`
 		CREATE TABLE IF NOT EXISTS sessions (
-			session_id INTEGER PRIMARY KEY AUTOINCREMENT
+			session_id INTEGER PRIMARY KEY AUTOINCREMENT,
+			name TEXT DEFAULT 'New Session'
 		);
 	`)
 	if err != nil {
@@ -104,6 +105,7 @@ func main() {
 	http.HandleFunc("/get-sessions", getSessionsHandler)
 	http.HandleFunc("/get-session-history", getSessionHistoryHandler)
 	http.HandleFunc("/delete-session", deleteSessionHandler)
+	http.HandleFunc("/rename-session", renameSessionHandler)
 	log.Println("Starting server on :8080")
 	log.Fatal(http.ListenAndServe(":8080", nil))
 }
@@ -177,25 +179,32 @@ func newSessionHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func getSessionsHandler(w http.ResponseWriter, r *http.Request) {
-	// Fetch all session IDs from the sessions table
-	rows, err := db.Query("SELECT session_id FROM sessions ORDER BY session_id DESC")
+	rows, err := db.Query("SELECT session_id, name FROM sessions ORDER BY session_id DESC")
 	if err != nil {
+		log.Printf("SQL error in getSessionsHandler: %v", err)
 		http.Error(w, err.Error(), 500)
 		return
 	}
 	defer rows.Close()
 
-	var sessions []int64
+	var sessions []map[string]interface{}
 	for rows.Next() {
 		var sessionID int64
-		if err := rows.Scan(&sessionID); err != nil {
+		var name string
+		if err := rows.Scan(&sessionID, &name); err != nil {
+			log.Printf("SQL scan error in getSessionsHandler: %v", err)
 			http.Error(w, err.Error(), 500)
 			return
 		}
-		sessions = append(sessions, sessionID)
+		sessions = append(sessions, map[string]interface{}{"session_id": sessionID, "name": name})
 	}
 
-	json.NewEncoder(w).Encode(sessions)
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(sessions); err != nil {
+		log.Printf("JSON encoding error in getSessionsHandler: %v", err)
+		http.Error(w, err.Error(), 500)
+		return
+	}
 }
 
 func deleteSessionHandler(w http.ResponseWriter, r *http.Request) {
@@ -210,5 +219,25 @@ func deleteSessionHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	w.WriteHeader(http.StatusOK)
+}
+
+func renameSessionHandler(w http.ResponseWriter, r *http.Request) {
+	var request struct {
+		SessionID string `json:"sessionId"`
+		NewName   string `json:"newName"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	// Use SQL parameters to prevent SQL injection.
+	_, err := db.Exec("UPDATE sessions SET name = ? WHERE session_id = ?", request.NewName, request.SessionID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
 	w.WriteHeader(http.StatusOK)
 }

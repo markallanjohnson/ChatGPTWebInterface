@@ -204,7 +204,7 @@
             sessionDiv.className = 'session-entry';
 
             const sessionButton = document.createElement('button');
-            sessionButton.textContent = 'Session ' + sessionId;
+            sessionButton.textContent = sessionName || 'Session ' + sessionId;
             sessionButton.className = 'button-style';
             sessionButton.onclick = () => loadSession(sessionId);
 
@@ -244,7 +244,6 @@
                 dropdownContent.style.left = '0px'; // This aligns the left of the dropdown with the left of the button
             };
 
-
             // Create a dropdown content div
             const dropdownContent = document.createElement('div');
             dropdownContent.className = 'dropdown-content';
@@ -262,8 +261,21 @@
                 deleteChat(sessionId, sessionDiv);
             };
 
-            // Append deleteButton to dropdownContent
+            const renameButton = document.createElement('a');
+            renameButton.href = '#';
+            renameButton.textContent = 'Rename Session';
+            renameButton.onclick = function(event) {
+                event.preventDefault();
+                var newSessionName = prompt('Enter new session name:', sessionButton.textContent);
+                if (newSessionName) {
+                    renameSession(sessionId, newSessionName);
+                    sessionButton.textContent = newSessionName;
+                }
+            };
+
+            // Append 
             dropdownContent.appendChild(deleteButton);
+            dropdownContent.appendChild(renameButton);
 
             // Append all parts to the sessionDiv
             sessionDiv.appendChild(sessionButton);
@@ -414,16 +426,79 @@
             fetch('/get-sessions')
                 .then(response => response.json())
                 .then(sessions => {
+                    if (!sessions || !Array.isArray(sessions)) {
+                        throw new Error('Sessions is not an array');
+                    }
                     const sidebar = document.getElementById('sidebar');
                     const chatHistoriesHeading = sidebar.querySelector('h2');
-                    sessions.reverse().forEach(sessionId => {
-                        addSessionToSidebar(sessionId);
+                    sessions.forEach(session => {
+                        addSessionToSidebar(session.session_id, session.name); // Pass the session name here
                     });
                 }).catch(error => {
-                    customLog('Error fetching sessions:' + error, true);
+                    customLog('Error fetching sessions: ' + error, true);
                 });
         }
-        
+
+        function addSessionToSidebar(sessionId, sessionName) {
+            const sidebar = document.getElementById('sidebar');
+            const sessionDiv = document.createElement('div');
+            sessionDiv.className = 'session-entry';
+
+            const sessionButton = document.createElement('button');
+            sessionButton.textContent = sessionName || 'Session ' + sessionId;
+            sessionButton.className = 'button-style';
+            sessionButton.onclick = () => loadSession(sessionId);
+
+            // Create a dropdown button
+            const dropdownButton = document.createElement('button');
+            dropdownButton.className = 'dropbtn';
+            dropdownButton.innerHTML = '...';
+            // Dropdown button event listener
+            dropdownButton.onclick = function(event) {
+                event.stopPropagation();
+                this.nextElementSibling.classList.toggle('show');
+            };
+
+            // Create a dropdown content div
+            const dropdownContent = document.createElement('div');
+            dropdownContent.className = 'dropdown-content';
+
+            // Add menu items here
+            const deleteButton = document.createElement('a');
+            deleteButton.href = '#';
+            deleteButton.textContent = 'Delete Chat';
+            deleteButton.onclick = function(event) {
+                event.preventDefault();
+                deleteChat(sessionId, sessionDiv);
+            };
+
+            const renameButton = document.createElement('a');
+            renameButton.href = '#';
+            renameButton.textContent = 'Rename Session';
+            renameButton.onclick = function(event) {
+                event.preventDefault();
+                var newSessionName = prompt('Enter new session name:', sessionButton.textContent);
+                if (newSessionName) {
+                    renameSession(sessionId, newSessionName);
+                    sessionButton.textContent = newSessionName;
+                }
+            };
+
+            // Append the menu items to the dropdown
+            dropdownContent.appendChild(renameButton);
+            dropdownContent.appendChild(deleteButton);
+
+            // Append the dropdown button and content to the session entry
+            sessionDiv.appendChild(sessionButton);
+            sessionDiv.appendChild(dropdownButton);
+            sessionDiv.appendChild(dropdownContent);
+
+                // Insert the session entry to the sidebar
+                const chatHistoriesHeading = sidebar.querySelector('h2');
+                sidebar.insertBefore(sessionDiv, chatHistoriesHeading.nextSibling);
+            }
+
+
         function loadSession(sessionId) {
             customLog("Loading session:" + sessionId);
             fetch('/get-session-history?session_id=' + sessionId)
@@ -462,7 +537,27 @@
             });
         }
 
-    
+        function renameSession(sessionId, newName) {
+            fetch('/rename-session', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ sessionId: sessionId.toString(), newName }),
+            }).then(response => {
+                if (response.ok) {
+                    customLog("Session " + sessionId + " renamed to " + newName + ".");
+                } else {
+                    response.text().then(text => {
+                        customLog("Failed to rename session " + sessionId + ": " + text, true);
+                    });
+                }
+            }).catch(error => {
+                customLog("Error: " + error, true);
+            });
+        }
+
+
         window.addEventListener('load', loadSessions);
     </script>
 </body>
