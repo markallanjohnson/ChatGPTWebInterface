@@ -2,33 +2,33 @@ package db
 
 import (
 	"database/sql"
-	"log"
 
 	_ "github.com/mattn/go-sqlite3" // Import go-sqlite3 library
 )
 
-var DB *sql.DB
+type DB struct {
+	*sql.DB
+}
 
-func Initialize(databasePath string) {
-	var err error
-	DB, err = sql.Open("sqlite3", databasePath)
+func Initialize(databasePath string) (*DB, error) {
+	db, err := sql.Open("sqlite3", databasePath)
 	if err != nil {
-		log.Fatalf("Error opening database: %v", err)
+		return nil, err // return the error instead of exiting
 	}
 
 	// Create sessions table if it doesn't exist
-	_, err = DB.Exec(`
+	_, err = db.Exec(`
 		CREATE TABLE IF NOT EXISTS sessions (
 			session_id INTEGER PRIMARY KEY AUTOINCREMENT,
 			name TEXT DEFAULT 'Session'
 		);
 	`)
 	if err != nil {
-		log.Fatalf("Error creating sessions table: %v", err)
+		return nil, err // return the error instead of exiting
 	}
 
 	// Create history table if it doesn't exist
-	_, err = DB.Exec(`
+	_, err = db.Exec(`
 		CREATE TABLE IF NOT EXISTS history (
 			id INTEGER PRIMARY KEY AUTOINCREMENT,
 			session_id INTEGER,
@@ -38,13 +38,15 @@ func Initialize(databasePath string) {
 		);
 	`)
 	if err != nil {
-		log.Fatalf("Error creating history table: %v", err)
+		return nil, err // return the error instead of exiting
 	}
+
+	return &DB{db}, nil // return your DB instance
 }
 
 // GetSessionHistory retrieves the history for a given session.
-func GetSessionHistory(sessionID string) ([]map[string]string, error) {
-	rows, err := DB.Query("SELECT user_input, ai_response FROM history WHERE session_id = ? ORDER BY id ASC", sessionID)
+func (db *DB) GetSessionHistory(sessionID string) ([]map[string]string, error) {
+	rows, err := db.DB.Query("SELECT user_input, ai_response FROM history WHERE session_id = ? ORDER BY id ASC", sessionID)
 	if err != nil {
 		return nil, err
 	}
@@ -79,8 +81,8 @@ func GetSessionHistory(sessionID string) ([]map[string]string, error) {
 	return history, nil
 }
 
-func InsertNewSession() (int64, error) {
-	result, err := DB.Exec("INSERT INTO sessions DEFAULT VALUES")
+func (db *DB) InsertNewSession() (int64, error) {
+	result, err := db.DB.Exec("INSERT INTO sessions DEFAULT VALUES")
 	if err != nil {
 		return 0, err
 	}
@@ -88,29 +90,29 @@ func InsertNewSession() (int64, error) {
 	return sessionID, err
 }
 
-func DeleteSession(sessionID string) error {
-	_, err := DB.Exec("DELETE FROM history WHERE session_id = ?", sessionID)
+func (db *DB) DeleteSession(sessionID string) error {
+	_, err := db.DB.Exec("DELETE FROM history WHERE session_id = ?", sessionID)
 	if err != nil {
 		return err
 	}
-	_, err = DB.Exec("DELETE FROM sessions WHERE session_id = ?", sessionID)
+	_, err = db.DB.Exec("DELETE FROM sessions WHERE session_id = ?", sessionID)
 	return err
 }
 
-func RenameSession(sessionID, newName string) error {
-	_, err := DB.Exec("UPDATE sessions SET name = ? WHERE session_id = ?", newName, sessionID)
+func (db *DB) RenameSession(sessionID, newName string) error {
+	_, err := db.DB.Exec("UPDATE sessions SET name = ? WHERE session_id = ?", newName, sessionID)
 	return err
 }
 
 // InsertChatHistory adds a new entry to the chat history.
-func InsertChatHistory(sessionID, userInput, aiResponse string) error {
-	_, err := DB.Exec("INSERT INTO history (session_id, user_input, ai_response) VALUES (?, ?, ?)", sessionID, userInput, aiResponse)
+func (db *DB) InsertChatHistory(sessionID, userInput, aiResponse string) error {
+	_, err := db.DB.Exec("INSERT INTO history (session_id, user_input, ai_response) VALUES (?, ?, ?)", sessionID, userInput, aiResponse)
 	return err
 }
 
 // GetAllSessions retrieves all sessions from the database.
-func GetAllSessions() ([]map[string]interface{}, error) {
-	rows, err := DB.Query("SELECT session_id, name FROM sessions ORDER BY session_id DESC")
+func (db *DB) GetAllSessions() ([]map[string]interface{}, error) {
+	rows, err := db.DB.Query("SELECT session_id, name FROM sessions ORDER BY session_id DESC")
 	if err != nil {
 		return nil, err
 	}
