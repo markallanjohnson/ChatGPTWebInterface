@@ -18,34 +18,47 @@ func NewHandler(db *db.DB) *Handler {
 	return &Handler{DB: db}
 }
 
+// Utility to send JSON response
+func sendJSONResponse(w http.ResponseWriter, data interface{}, statusCode int) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(statusCode)
+	json.NewEncoder(w).Encode(data)
+}
+
+// Utility to send error response
+func sendErrorResponse(w http.ResponseWriter, errorMessage string, statusCode int) {
+	sendJSONResponse(w, map[string]string{"error": errorMessage}, statusCode)
+}
+
 func (h *Handler) LogHandler(w http.ResponseWriter, r *http.Request) {
 	var logObject struct {
 		Message string `json:"message"`
 		IsError bool   `json:"isError"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&logObject); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		sendErrorResponse(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 	logMessage := logObject.Message
 
 	file, err := os.OpenFile("application.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		sendErrorResponse(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	defer file.Close()
 
 	if _, err := file.WriteString(logMessage + "\n"); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		sendErrorResponse(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	sendJSONResponse(w, map[string]string{"status": "logged"}, http.StatusOK)
 }
 
 func (h *Handler) QueryHandler(w http.ResponseWriter, r *http.Request) {
 	sessionID := r.URL.Query().Get("session_id")
 	if sessionID == "" {
-		http.Error(w, "session_id is required", http.StatusBadRequest)
+		sendErrorResponse(w, "session_id is required", http.StatusBadRequest)
 		return
 	}
 	userQuery := r.URL.Query().Get("query")
@@ -54,32 +67,37 @@ func (h *Handler) QueryHandler(w http.ResponseWriter, r *http.Request) {
 	history, err := h.DB.GetSessionHistory(sessionID)
 	if err != nil {
 		log.Printf("Error retrieving session history for session %s: %v", sessionID, err)
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		sendErrorResponse(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
 	// Append the current user query
 	history = append(history, map[string]string{"role": "user", "content": userQuery})
-	historyJSON, _ := json.Marshal(history)
+	historyJSON, err := json.Marshal(history)
+	if err != nil {
+		sendErrorResponse(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 
-	// Run the Python script
+	// Run the Python script and get the output
 	cmd := exec.Command("python", "main.py")
 	cmd.Stdin = strings.NewReader(string(historyJSON))
 	output, err := cmd.Output()
 	if err != nil {
 		log.Printf("Error running AI model for session %s: %v", sessionID, err)
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		sendErrorResponse(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
 	// Insert the AI response into the database and log the operation
-	err = h.DB.InsertChatHistory(sessionID, userQuery, string(output))
-	if err != nil {
+	if err := h.DB.InsertChatHistory(sessionID, userQuery, string(output)); err != nil {
 		log.Printf("Error saving chat history for session %s: %v", sessionID, err)
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		sendErrorResponse(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
+	// Send the plain output directly to the client
+	w.Header().Set("Content-Type", "text/plain")
 	w.Write(output)
 }
 
@@ -87,31 +105,31 @@ func (h *Handler) NewSessionHandler(w http.ResponseWriter, r *http.Request) {
 	sessionID, err := h.DB.InsertNewSession()
 	if err != nil {
 		log.Printf("Error creating new session: %v", err)
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		sendErrorResponse(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	json.NewEncoder(w).Encode(map[string]int64{"session_id": sessionID})
+	sendJSONResponse(w, map[string]int64{"session_id": sessionID}, http.StatusOK)
 }
 
 func (h *Handler) GetSessionsHandler(w http.ResponseWriter, r *http.Request) {
 	sessions, err := h.DB.GetAllSessions()
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		sendErrorResponse(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	json.NewEncoder(w).Encode(sessions)
+	sendJSONResponse(w, sessions, http.StatusOK)
 }
 
 func (h *Handler) DeleteSessionHandler(w http.ResponseWriter, r *http.Request) {
 	sessionID := r.URL.Query().Get("session_id")
 	err := h.DB.DeleteSession(sessionID)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		sendErrorResponse(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	w.WriteHeader(http.StatusOK)
+	sendJSONResponse(w, map[string]string{"status": "deleted"}, http.StatusOK)
 }
 
 func (h *Handler) RenameSessionHandler(w http.ResponseWriter, r *http.Request) {
@@ -121,28 +139,28 @@ func (h *Handler) RenameSessionHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	err := json.NewDecoder(r.Body).Decode(&request)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		sendErrorResponse(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
 	err = h.DB.RenameSession(request.SessionID, request.NewName)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		sendErrorResponse(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	w.WriteHeader(http.StatusOK)
+	sendJSONResponse(w, map[string]string{"status": "renamed"}, http.StatusOK)
 }
 
 func (h *Handler) GetSessionHistoryHandler(w http.ResponseWriter, r *http.Request) {
 	sessionID := r.URL.Query().Get("session_id")
 	if sessionID == "" {
-		http.Error(w, "session_id is required", http.StatusBadRequest)
+		sendErrorResponse(w, "session_id is required", http.StatusBadRequest)
 		return
 	}
 	history, err := h.DB.GetSessionHistory(sessionID)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		sendErrorResponse(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	json.NewEncoder(w).Encode(history)
+	sendJSONResponse(w, history, http.StatusOK)
 }
