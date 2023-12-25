@@ -2,8 +2,8 @@ package handlers
 
 import (
 	"GPTChat/db"
+	"GPTChat/errors"
 	"encoding/json"
-	"log"
 	"net/http"
 	"os"
 	"os/exec"
@@ -11,11 +11,15 @@ import (
 )
 
 type Handler struct {
-	DB *db.DB
+	sessionRepo *db.SessionRepository
+	historyRepo *db.HistoryRepository
 }
 
-func NewHandler(db *db.DB) *Handler {
-	return &Handler{DB: db}
+func NewHandler(sessionRepo *db.SessionRepository, historyRepo *db.HistoryRepository) *Handler {
+	return &Handler{
+		sessionRepo: sessionRepo,
+		historyRepo: historyRepo,
+	}
 }
 
 // Utility to send JSON response
@@ -25,31 +29,26 @@ func sendJSONResponse(w http.ResponseWriter, data interface{}, statusCode int) {
 	json.NewEncoder(w).Encode(data)
 }
 
-// Utility to send error response
-func sendErrorResponse(w http.ResponseWriter, errorMessage string, statusCode int) {
-	sendJSONResponse(w, map[string]string{"error": errorMessage}, statusCode)
-}
-
 func (h *Handler) LogHandler(w http.ResponseWriter, r *http.Request) {
 	var logObject struct {
 		Message string `json:"message"`
 		IsError bool   `json:"isError"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&logObject); err != nil {
-		sendErrorResponse(w, err.Error(), http.StatusBadRequest)
+		errors.HandleError(w, errors.NewCustomError(http.StatusBadRequest, "Error decoding JSON", "An unexpected error has occurred."))
 		return
 	}
 	logMessage := logObject.Message
 
 	file, err := os.OpenFile("application.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
-		sendErrorResponse(w, err.Error(), http.StatusInternalServerError)
+		errors.HandleError(w, errors.NewCustomError(http.StatusInternalServerError, "Error opening log file", "An unexpected error has occurred."))
 		return
 	}
 	defer file.Close()
 
 	if _, err := file.WriteString(logMessage + "\n"); err != nil {
-		sendErrorResponse(w, err.Error(), http.StatusInternalServerError)
+		errors.HandleError(w, errors.NewCustomError(http.StatusInternalServerError, "Error writing to log file", "An unexpected error has occurred."))
 		return
 	}
 	sendJSONResponse(w, map[string]string{"status": "logged"}, http.StatusOK)
@@ -58,16 +57,15 @@ func (h *Handler) LogHandler(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) QueryHandler(w http.ResponseWriter, r *http.Request) {
 	sessionID := r.URL.Query().Get("session_id")
 	if sessionID == "" {
-		sendErrorResponse(w, "session_id is required", http.StatusBadRequest)
+		errors.HandleError(w, errors.NewCustomError(http.StatusBadRequest, "session_id is required", "An unexpected error has occurred."))
 		return
 	}
 	userQuery := r.URL.Query().Get("query")
 
 	// Retrieve and log session history
-	history, err := h.DB.GetSessionHistory(sessionID)
+	history, err := h.historyRepo.GetSessionHistory(sessionID)
 	if err != nil {
-		log.Printf("Error retrieving session history for session %s: %v", sessionID, err)
-		sendErrorResponse(w, err.Error(), http.StatusInternalServerError)
+		errors.HandleError(w, errors.NewCustomError(http.StatusInternalServerError, "Error retrieving session history", "An unexpected error has occurred."))
 		return
 	}
 
@@ -75,7 +73,7 @@ func (h *Handler) QueryHandler(w http.ResponseWriter, r *http.Request) {
 	history = append(history, map[string]string{"role": "user", "content": userQuery})
 	historyJSON, err := json.Marshal(history)
 	if err != nil {
-		sendErrorResponse(w, err.Error(), http.StatusInternalServerError)
+		errors.HandleError(w, errors.NewCustomError(http.StatusInternalServerError, "Error marshalling session history", "An unexpected error has occurred."))
 		return
 	}
 
@@ -84,15 +82,13 @@ func (h *Handler) QueryHandler(w http.ResponseWriter, r *http.Request) {
 	cmd.Stdin = strings.NewReader(string(historyJSON))
 	output, err := cmd.Output()
 	if err != nil {
-		log.Printf("Error running AI model for session %s: %v", sessionID, err)
-		sendErrorResponse(w, err.Error(), http.StatusInternalServerError)
+		errors.HandleError(w, errors.NewCustomError(http.StatusInternalServerError, "Error running AI model", "An unexpected error has occurred."))
 		return
 	}
 
 	// Insert the AI response into the database and log the operation
-	if err := h.DB.InsertChatHistory(sessionID, userQuery, string(output)); err != nil {
-		log.Printf("Error saving chat history for session %s: %v", sessionID, err)
-		sendErrorResponse(w, err.Error(), http.StatusInternalServerError)
+	if err := h.historyRepo.InsertChatHistory(sessionID, userQuery, string(output)); err != nil {
+		errors.HandleError(w, errors.NewCustomError(http.StatusInternalServerError, "Error saving chat history", "An unexpected error has occurred."))
 		return
 	}
 
@@ -102,10 +98,9 @@ func (h *Handler) QueryHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) NewSessionHandler(w http.ResponseWriter, r *http.Request) {
-	sessionID, err := h.DB.InsertNewSession()
+	sessionID, err := h.sessionRepo.InsertNewSession()
 	if err != nil {
-		log.Printf("Error creating new session: %v", err)
-		sendErrorResponse(w, err.Error(), http.StatusInternalServerError)
+		errors.HandleError(w, errors.NewCustomError(http.StatusInternalServerError, "Error creating new session", "An unexpected error has occurred."))
 		return
 	}
 
@@ -113,9 +108,9 @@ func (h *Handler) NewSessionHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) GetSessionsHandler(w http.ResponseWriter, r *http.Request) {
-	sessions, err := h.DB.GetAllSessions()
+	sessions, err := h.sessionRepo.GetAllSessions()
 	if err != nil {
-		sendErrorResponse(w, err.Error(), http.StatusInternalServerError)
+		errors.HandleError(w, errors.NewCustomError(http.StatusInternalServerError, "Error retrieving sessions", "An unexpected error has occurred."))
 		return
 	}
 
@@ -124,9 +119,9 @@ func (h *Handler) GetSessionsHandler(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) DeleteSessionHandler(w http.ResponseWriter, r *http.Request) {
 	sessionID := r.URL.Query().Get("session_id")
-	err := h.DB.DeleteSession(sessionID)
+	err := h.sessionRepo.DeleteSession(sessionID)
 	if err != nil {
-		sendErrorResponse(w, err.Error(), http.StatusInternalServerError)
+		errors.HandleError(w, errors.NewCustomError(http.StatusInternalServerError, "Error deleting session", "An unexpected error has occurred."))
 		return
 	}
 	sendJSONResponse(w, map[string]string{"status": "deleted"}, http.StatusOK)
@@ -139,13 +134,13 @@ func (h *Handler) RenameSessionHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	err := json.NewDecoder(r.Body).Decode(&request)
 	if err != nil {
-		sendErrorResponse(w, err.Error(), http.StatusBadRequest)
+		errors.HandleError(w, errors.NewCustomError(http.StatusBadRequest, "Error decoding JSON", "An unexpected error has occurred."))
 		return
 	}
 
-	err = h.DB.RenameSession(request.SessionID, request.NewName)
+	err = h.sessionRepo.RenameSession(request.SessionID, request.NewName)
 	if err != nil {
-		sendErrorResponse(w, err.Error(), http.StatusInternalServerError)
+		errors.HandleError(w, errors.NewCustomError(http.StatusInternalServerError, "Error renaming session", "An unexpected error has occurred."))
 		return
 	}
 	sendJSONResponse(w, map[string]string{"status": "renamed"}, http.StatusOK)
@@ -154,12 +149,12 @@ func (h *Handler) RenameSessionHandler(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) GetSessionHistoryHandler(w http.ResponseWriter, r *http.Request) {
 	sessionID := r.URL.Query().Get("session_id")
 	if sessionID == "" {
-		sendErrorResponse(w, "session_id is required", http.StatusBadRequest)
+		errors.HandleError(w, errors.NewCustomError(http.StatusBadRequest, "session_id is required", "An unexpected error has occurred."))
 		return
 	}
-	history, err := h.DB.GetSessionHistory(sessionID)
+	history, err := h.historyRepo.GetSessionHistory(sessionID)
 	if err != nil {
-		sendErrorResponse(w, err.Error(), http.StatusInternalServerError)
+		errors.HandleError(w, errors.NewCustomError(http.StatusInternalServerError, "Error retrieving session history", "An unexpected error has occurred."))
 		return
 	}
 	sendJSONResponse(w, history, http.StatusOK)

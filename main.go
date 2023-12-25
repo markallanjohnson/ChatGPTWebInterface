@@ -12,7 +12,10 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to initialize database: %v", err)
 	}
-	handler := handlers.NewHandler(dbInstance)
+	sessionRepo := db.NewSessionRepository(dbInstance.SQLDB())
+	historyRepo := db.NewHistoryRepository(dbInstance.SQLDB())
+
+	handler := handlers.NewHandler(sessionRepo, historyRepo)
 
 	http.Handle("/", http.FileServer(http.Dir("./static")))
 	http.HandleFunc("/log", handler.LogHandler)
