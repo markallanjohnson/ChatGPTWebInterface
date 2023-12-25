@@ -8,15 +8,28 @@ import (
 )
 
 func main() {
+	// Initialize the database connection
 	dbInstance, err := db.Initialize("./db/conversation.db")
 	if err != nil {
 		log.Fatalf("Failed to initialize database: %v", err)
 	}
+
+	// Create repositories
 	sessionRepo := db.NewSessionRepository(dbInstance.SQLDB())
 	historyRepo := db.NewHistoryRepository(dbInstance.SQLDB())
 
+	// Create a new handler with dependencies
 	handler := handlers.NewHandler(sessionRepo, historyRepo)
 
+	// Set up HTTP routes
+	setupRoutes(handler)
+
+	// Start the server
+	startServer()
+}
+
+// setupRoutes configures the HTTP routes for the server.
+func setupRoutes(handler *handlers.Handler) {
 	http.Handle("/", http.FileServer(http.Dir("./static")))
 	http.HandleFunc("/log", handler.LogHandler)
 	http.HandleFunc("/query", handler.QueryHandler)
@@ -25,7 +38,13 @@ func main() {
 	http.HandleFunc("/get-session-history", handler.GetSessionHistoryHandler)
 	http.HandleFunc("/delete-session", handler.DeleteSessionHandler)
 	http.HandleFunc("/rename-session", handler.RenameSessionHandler)
+}
 
-	log.Println("Starting server on :8080")
-	log.Fatal(http.ListenAndServe(":8080", nil))
+// startServer starts the HTTP server.
+func startServer() {
+	const address = ":8080"
+	log.Printf("Starting server on %s", address)
+	if err := http.ListenAndServe(address, nil); err != nil {
+		log.Fatalf("Failed to start server: %v", err)
+	}
 }
