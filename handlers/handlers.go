@@ -1,8 +1,8 @@
 package handlers
 
 import (
-	"GPTChat/db"
 	"GPTChat/errors"
+	"GPTChat/services"
 	"encoding/json"
 	"net/http"
 	"os"
@@ -12,15 +12,15 @@ import (
 
 // Handler encapsulates the dependencies for handling HTTP requests.
 type Handler struct {
-	sessionRepo *db.SessionRepository
-	historyRepo *db.HistoryRepository
+	chatService    *services.ChatService
+	sessionService *services.SessionService
 }
 
 // NewHandler constructs a new Handler with the given repositories.
-func NewHandler(sessionRepo *db.SessionRepository, historyRepo *db.HistoryRepository) *Handler {
+func NewHandler(chatService *services.ChatService, sessionService *services.SessionService) *Handler {
 	return &Handler{
-		sessionRepo: sessionRepo,
-		historyRepo: historyRepo,
+		chatService:    chatService,
+		sessionService: sessionService,
 	}
 }
 
@@ -75,7 +75,7 @@ func (h *Handler) QueryHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	userQuery := r.URL.Query().Get("query")
 
-	history, err := h.historyRepo.GetSessionHistory(sessionID)
+	history, err := h.chatService.GetSessionHistory(sessionID)
 	if err != nil {
 		errors.HandleError(w, errors.NewCustomError(http.StatusInternalServerError, "Error retrieving session history", "An unexpected error has occurred."))
 		return
@@ -96,7 +96,7 @@ func (h *Handler) QueryHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.historyRepo.InsertChatHistory(sessionID, userQuery, string(output)); err != nil {
+	if err := h.chatService.SaveChatHistory(sessionID, userQuery, string(output)); err != nil {
 		errors.HandleError(w, errors.NewCustomError(http.StatusInternalServerError, "Error saving chat history", "An unexpected error has occurred."))
 		return
 	}
@@ -107,7 +107,7 @@ func (h *Handler) QueryHandler(w http.ResponseWriter, r *http.Request) {
 
 // NewSessionHandler handles the creation of a new session.
 func (h *Handler) NewSessionHandler(w http.ResponseWriter, r *http.Request) {
-	sessionID, err := h.sessionRepo.InsertNewSession()
+	sessionID, err := h.sessionService.CreateSession()
 	if err != nil {
 		errors.HandleError(w, errors.NewCustomError(http.StatusInternalServerError, "Error creating new session", "An unexpected error has occurred."))
 		return
@@ -118,7 +118,7 @@ func (h *Handler) NewSessionHandler(w http.ResponseWriter, r *http.Request) {
 
 // GetSessionsHandler handles retrieving all sessions.
 func (h *Handler) GetSessionsHandler(w http.ResponseWriter, r *http.Request) {
-	sessions, err := h.sessionRepo.GetAllSessions()
+	sessions, err := h.sessionService.GetAllSessions()
 	if err != nil {
 		errors.HandleError(w, errors.NewCustomError(http.StatusInternalServerError, "Error retrieving sessions", "An unexpected error has occurred."))
 		return
@@ -130,7 +130,7 @@ func (h *Handler) GetSessionsHandler(w http.ResponseWriter, r *http.Request) {
 // DeleteSessionHandler handles deleting a session.
 func (h *Handler) DeleteSessionHandler(w http.ResponseWriter, r *http.Request) {
 	sessionID := r.URL.Query().Get("session_id")
-	if err := h.sessionRepo.DeleteSession(sessionID); err != nil {
+	if err := h.sessionService.DeleteSession(sessionID); err != nil {
 		errors.HandleError(w, errors.NewCustomError(http.StatusInternalServerError, "Error deleting session", "An unexpected error has occurred."))
 		return
 	}
@@ -149,7 +149,7 @@ func (h *Handler) RenameSessionHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.sessionRepo.RenameSession(request.SessionID, request.NewName); err != nil {
+	if err := h.sessionService.RenameSession(request.SessionID, request.NewName); err != nil {
 		errors.HandleError(w, errors.NewCustomError(http.StatusInternalServerError, "Error renaming session", "An unexpected error has occurred."))
 		return
 	}
@@ -164,7 +164,7 @@ func (h *Handler) GetSessionHistoryHandler(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	history, err := h.historyRepo.GetSessionHistory(sessionID)
+	history, err := h.chatService.GetSessionHistory(sessionID)
 	if err != nil {
 		errors.HandleError(w, errors.NewCustomError(http.StatusInternalServerError, "Error retrieving session history", "An unexpected error has occurred."))
 		return

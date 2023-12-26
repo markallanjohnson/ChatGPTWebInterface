@@ -3,6 +3,7 @@ package main
 import (
 	"GPTChat/db"
 	"GPTChat/handlers"
+	"GPTChat/services"
 	"log"
 	"net/http"
 )
@@ -18,8 +19,12 @@ func main() {
 	sessionRepo := db.NewSessionRepository(dbInstance.SQLDB())
 	historyRepo := db.NewHistoryRepository(dbInstance.SQLDB())
 
+	// Create services with the repos
+	chatService := services.NewChatService(historyRepo)
+	sessionService := services.NewSessionService(sessionRepo)
+
 	// Create a new handler with dependencies
-	handler := handlers.NewHandler(sessionRepo, historyRepo)
+	handler := handlers.NewHandler(chatService, sessionService)
 
 	// Set up HTTP routes
 	setupRoutes(handler)
