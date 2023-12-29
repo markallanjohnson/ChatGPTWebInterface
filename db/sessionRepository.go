@@ -4,6 +4,7 @@ package db
 import (
 	"database/sql"
 	"fmt"
+	"log"
 )
 
 // SessionRepository handles operations on session data in the database.
@@ -38,9 +39,16 @@ func (repo *SessionRepository) DeleteSession(sessionID string) error {
 
 // RenameSession updates the name of a session in the database.
 func (repo *SessionRepository) RenameSession(sessionID, newName string) error {
-	if _, err := repo.db.Exec("UPDATE sessions SET name = ? WHERE session_id = ?", newName, sessionID); err != nil {
+	result, err := repo.db.Exec("UPDATE sessions SET name = ? WHERE session_id = ?", newName, sessionID)
+	if err != nil {
 		return fmt.Errorf("error renaming session for session_id %s: %w", sessionID, err)
 	}
+	count, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("error getting rows affected: %w", err)
+	}
+	log.Printf("Rows affected: %d", count)
+
 	return nil
 }
 

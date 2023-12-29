@@ -103,17 +103,43 @@
             border-radius: 4px; /* Rounded corners for the code block */
         }
         .dropbtn {
-            background-color: transparent;
-            position: absolute;
-            right: 0; /* Align to the far right */
-            top: 0;
+            background-color: #333;
             color: #0f0;
-            padding: 10px 3px;
+            padding: 5px 8px;
+            font-size: 16px;
             border: none;
             cursor: pointer;
-            z-index: 2; /* Ensure it's above other content */
-            transform: none;
+            outline: none;
+            position: relative;
+            float: right;
         }
+
+        .dropdown-content {
+            display: none;
+            position: absolute;
+            right: 0;
+            background-color: #333;
+            min-width: 160px;
+            box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
+            z-index: 1;
+        }
+
+        .dropdown-content a {
+            color: #0f0;
+            padding: 12px 16px;
+            text-decoration: none;
+            display: block;
+        }
+        
+        /* Positioning the dropdown correctly */
+        .session-entry .dropdown {
+            position: static;
+        }
+        
+        .session-entry:hover .dropdown-content {
+            display: block;
+        }
+
         .session-entry {
             position: relative;
             padding: 10px 20px; /* Adjust padding as needed */
@@ -135,38 +161,105 @@
             flex-grow: 1; /* Ensures the button expands to fill the space */
             cursor: pointer;
         }               
-        .dropbtn:hover, .dropbtn:focus {
-            background-color: #444;
-        }
-        .dropdown {
-            position: relative;
-            display: inline-block;
-        }
-        .dropdown-content {
-            display: none;
-            position: absolute;
-            background-color: #333;
-            min-width: 100px;
-            box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
-            z-index: 1;
-        }
-        .dropdown-content a {
-            color: #0f0;
-            padding: 12px 16px;
-            text-decoration: none;
-            display: block;
-        }
-
-        .dropdown-content a:hover {background-color: #555;}
 
         .show {display: block;}
+
+        .modal {
+            display: none; /* Hidden by default */
+            position: fixed; /* Stay in place */
+            z-index: 2; /* Sit on top */
+            left: 0;
+            top: 0;
+            width: 100%; /* Full width */
+            height: 100%; /* Full height */
+            overflow: auto; /* Enable scroll if needed */
+            background-color: rgb(0,0,0); /* Fallback color */
+            background-color: rgba(0,0,0,0.4); /* Black w/ opacity */
+        }
+
+        .modal-content {
+            position: relative;
+            background-color: #333;
+            margin: 10% auto; /* 10% from the top and centered */
+            padding: 20px;
+            border: 1px solid #888;
+            width: 50%; /* Could be more or less, depending on screen size */
+            border-radius: 5px;
+            box-shadow: 0 4px 8px 0 rgba(0,0,0,0.2), 0 6px 20px 0 rgba(0,0,0,0.19);
+        }
+
+        .close-button {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .close-button:hover,
+        .close-button:focus {
+            color: #fff;
+            text-decoration: none;
+            cursor: pointer;
+        }
+
+        /* Add this to make the button more visually part of the modal */
+        #project-selection-modal button {
+            display: block;
+            width: 100%;
+            padding: 10px;
+            margin-top: 10px;
+            background-color: #0f0; /* Green background */
+            color: #000; /* Black text color */
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        #project-selection-modal button:hover {
+            background-color: #0c0; /* Darker green */
+        }
+
+        .project-list-item {
+            padding: 10px 20px;
+            margin: 5px 0;
+            background-color: #333;
+            color: #0f0;
+            border: 1px solid #0f0;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .project-list-item button {
+            background-color: #222;
+            color: #0f0;
+            border: 1px solid #0f0;
+            border-radius: 4px;
+            padding: 5px 10px;
+            margin-left: 10px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        .project-list-item:hover {
+            background-color: #444;
+        }
+
+        .project-list-item button:hover {
+            background-color: #0f0;
+            color: #000;
+        }
     </style>
 </head>
 <body>
     <div id="sidebar">
-        <button id="new-chat-button" onclick="createNewChat()">New Chat</button>
-        <h2>Chat Histories</h2>
-        <!-- Chat history links will go here -->
+        <button id="new-chat-button">Select Project</button>
+        <h2>Directory</h2>
+        <!-- Project Directory will go here -->
     </div>
     <div id="chat-container">
         <div id="loadingIndicator" style="display: none;">
@@ -175,10 +268,79 @@
         <div id="chat-box"></div>
         <input type="text" id="input-box" placeholder="Type your message here..." onkeypress="sendMessage(event)">
     </div>
-
+    <div id="project-selection-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-button">&times;</span>
+            <h2>Choose a Project</h2>
+            <div id="project-list">
+                <!-- Dynamically generated list of projects will be inserted here -->
+            </div>
+            <button onclick="createNewChat()">+ New Project</button>
+        </div>
+    </div>  
     <script>
-        let currentSessionId = null;
-        let isCurrentSessionAddedToSidebar = false;
+        
+        const appState = {
+            currentSessionId: null,
+
+            initializeApp: () => {
+                customLog("Initializing app...");
+                appState.setupEventListeners();
+                appState.setupModalEventListeners();
+                appState.setupDropdowns();
+            },
+
+            setupEventListeners: function() {
+                customLog("Setting up event listeners...");
+            
+                document.getElementById('new-chat-button').addEventListener('click', function() {
+                    event.stopPropagation();
+                    modal.open();
+                });
+                document.querySelector('.close-button').addEventListener('click', modal.close);
+                
+                document.getElementById('project-selection-modal').addEventListener('click', handleModalClick);
+                document.querySelector('#project-selection-modal button').addEventListener('click', createNewChat);
+                // Event delegation for session items and dropdowns
+                document.getElementById('project-list').addEventListener('click', handleProjectListClick);
+                document.addEventListener('click', closeAllDropdownsOutsideClick);
+                
+                // Input box event
+                document.getElementById('input-box').addEventListener('keypress', sendMessage);
+            },
+
+            setupModalEventListeners: function() {
+                customLog("Setting up modal event listeners...");
+                const projectList = document.getElementById('project-list');
+                // Use event delegation for project list items
+                projectList.addEventListener('click', function(event) {
+                    if (event.target && event.target.matches('.project-list-item span')) {
+                        const sessionId = event.target.closest('.project-list-item').dataset.sessionId;
+                        customLog(`Session list item ${sessionId} clicked.`);
+                        loadSession(sessionId);
+                    }
+                });
+            },
+
+            setupDropdowns: function() {
+                customLog("Setting up dropdowns...");
+                document.querySelectorAll('.dropbtn').forEach(function(dropbtn) {
+                    dropbtn.onclick = function(event) {
+                        // Prevent the event from closing dropdowns
+                        event.stopPropagation();
+                        // Close all other dropdowns
+                        closeAllDropdowns();
+                        // Toggle this dropdown
+                        this.nextElementSibling.classList.toggle('show');
+                    };
+                });
+            },
+
+
+        };
+
+        // Initialization app
+        window.addEventListener('DOMContentLoaded', () => appState.initializeApp());
 
         function customLog(message, isError = false) {
             let logObject = { message, isError };
@@ -191,147 +353,217 @@
             });
         }
 
-        function createNewChat() {
-            customLog("Preparing for new chat...");
-            currentSessionId = null;
-            isCurrentSessionAddedToSidebar = false;
-            document.getElementById('chat-box').innerHTML = ''; // Clear previous chat
-        }
+        // Modal handling
+        const modal = (function() {
+            const projectModal = document.getElementById('project-selection-modal');
+        
+            function closeModal() {
+                customLog("Closing modal...");
+                projectModal.style.display = 'none';
+            }
 
-        function addSessionToSidebar(sessionId) {
-            const sidebar = document.getElementById('sidebar');
-            const sessionDiv = document.createElement('div');
-            sessionDiv.className = 'session-entry';
-
-            const sessionButton = document.createElement('button');
-            sessionButton.textContent = sessionName || 'Session ' + sessionId;
-            sessionButton.className = 'button-style';
-            sessionButton.onclick = () => loadSession(sessionId);
-
-            // Create a dropdown button
-            const dropdownButton = document.createElement('button');
-            dropdownButton.className = 'dropbtn';
-            dropdownButton.innerHTML = '...';
-            // Align the dropdown to the right
-            dropdownButton.style.position = 'absolute';
-            dropdownButton.style.right = '0';
-            dropdownButton.style.top = '0';
-            dropdownButton.style.transform = 'translateY(0%)';
-            dropdownButton.onclick = function(event) {
-                event.stopPropagation();
-
-                // Close all other dropdowns 
-                var dropdowns = document.getElementsByClassName("dropdown-content");
-                for (var i = 0; i < dropdowns.length; i++) {
-                    var openDropdown = dropdowns[i];
-                    if (openDropdown.classList.contains('show')) {
-                    openDropdown.classList.remove('show');
-                    }
-                }
-                
-                // Toggle the dropdown content
-                var dropdownContent = this.nextElementSibling;
-                dropdownContent.classList.toggle('show');
-
-                // Calculate and set the position of dropdownContent
-                var buttonRect = this.getBoundingClientRect();
-                
-                // Set top style to align with the bottom of the dropdown button
-                dropdownContent.style.top = `${buttonRect.height}px`; // This aligns the top of the dropdown with the bottom of the button
-
-                // Set left style to align with the left of the dropdown button
-                // If the button is not at the very right edge of its container, you might need to adjust this value
-                dropdownContent.style.left = '0px'; // This aligns the left of the dropdown with the left of the button
+        // Public API
+            return {
+                open: function() {
+                    console.log("Current state before modal open:", appState);
+                    customLog("Opening modal...");
+                    projectModal.style.display = 'block';
+                    loadSessionsIntoModal();
+                },
+                close: closeModal
             };
+        })();
 
-            // Create a dropdown content div
+        function createSessionItem(session) {
+            customLog(`Creating session item with session_id: ${session.session_id} and name: ${session.name}`);
+            customLog("Creating session item...");
+            const sessionItem = document.createElement('div');
+            sessionItem.className = 'project-list-item';
+            sessionItem.dataset.sessionId = session.session_id;
+            customLog("Session name: " + session.name);
+
+            const sessionName = document.createElement('span');
+            sessionName.className = 'session-name';
+            sessionName.textContent = session.name || 'Session ' + session.session_id;
+            customLog("Session name text content: " + sessionName.textContent);
+
+            // Dropdown and its contents
+            const dropdown = document.createElement('div');
+            dropdown.className = 'dropdown';
+            const dropbtn = document.createElement('button');
+            dropbtn.className = 'dropbtn';
+            dropbtn.textContent = '...';
+            dropbtn.onclick = function(event) {
+                event.stopPropagation();
+                this.nextElementSibling.classList.toggle('show');
+            };
+            dropdown.appendChild(dropbtn);
+
             const dropdownContent = document.createElement('div');
             dropdownContent.className = 'dropdown-content';
-            // Adjust the styling for dropdown content
-            dropdownContent.style.minWidth = '100%'; // Make dropdown the same width as the session button
-            dropdownContent.style.left = '0'; // 
-            dropdownContent.style.top = '100%';
+            dropdownContent.appendChild(createDropdownOption('Rename', () => promptForNewSessionName(session.session_id, sessionName)));
 
-            // Add menu items here
-            const deleteButton = document.createElement('a');
-            deleteButton.href = '#';
-            deleteButton.textContent = 'Delete Chat';
-            deleteButton.onclick = function(event) {
-                event.preventDefault();
-                deleteChat(sessionId, sessionDiv);
-            };
+            dropdownContent.appendChild(createDropdownOption('Delete', () => deleteChat(session.session_id, sessionItem)));
+            dropdown.appendChild(dropdownContent);
 
-            const renameButton = document.createElement('a');
-            renameButton.href = '#';
-            renameButton.textContent = 'Rename Session';
-            renameButton.onclick = function(event) {
-                event.preventDefault();
-                var newSessionName = prompt('Enter new session name:', sessionButton.textContent);
-                if (newSessionName) {
-                    renameSession(sessionId, newSessionName);
-                    sessionButton.textContent = newSessionName;
-                }
-            };
+            sessionItem.appendChild(sessionName);
+            sessionItem.appendChild(dropdown);
 
-            // Append 
-            dropdownContent.appendChild(deleteButton);
-            dropdownContent.appendChild(renameButton);
-
-            // Append all parts to the sessionDiv
-            sessionDiv.appendChild(sessionButton);
-            sessionDiv.appendChild(dropdownButton);
-            sessionDiv.appendChild(dropdownContent);
-
-            // Finally, append the sessionDiv to the sidebar or before the first session entry
-            const chatHistoriesHeading = sidebar.querySelector('h2');
-            sidebar.insertBefore(sessionDiv, chatHistoriesHeading.nextSibling);
+            return sessionItem;
         }
 
-        window.onclick = function(event) {
+        function promptForNewSessionName(sessionId, sessionNameElement) {
+            const currentName = sessionNameElement.textContent;
+            const newName = prompt('Enter new session name:', currentName);
+            if (newName && newName !== currentName) {
+                renameSession(sessionId, newName, sessionNameElement);
+            }
+        }
+
+        function createDropdownOption(text, action) {
+            const option = document.createElement('a');
+            option.textContent = text;
+            option.href = '#';
+            option.onclick = function(event) {
+                event.preventDefault();
+                action();
+            };
+            return option;
+        }
+
+
+        function handleProjectListClick(event) {
+            event.stopPropagation();
+            const sessionItem = event.target.closest('.project-list-item');
+            customLog("Clicked on Session item: " + sessionItem);
+            if (!sessionItem) return;
+
+            const sessionId = sessionItem.dataset.sessionId;
+            if (event.target.classList.contains('rename-option')) {
+                const sessionNameElement = sessionItem.querySelector('span.session-name'); // Ensure this selector targets the correct span
+                customLog("Session name element: " + sessionNameElement);
+                const currentName = sessionNameElement.textContent;
+                const newName = prompt('Enter new session name:', currentName);
+                if (newName && newName !== currentName) {
+                    renameSession(sessionId, newName, sessionNameElement);
+                }
+            } else if (event.target.classList.contains('delete-option')) {
+                if (confirm('Are you sure you want to delete this session?')) {
+                    deleteChat(sessionId, sessionItem);
+                }
+            }
+            closeAllDropdowns();
+        }
+
+        // Toggles a dropdown menu
+        function toggleDropdown(buttonElement) {
+            closeAllDropdowns();
+            buttonElement.nextElementSibling.classList.toggle('show');
+        }
+
+        function closeAllDropdownsOutsideClick(event) {
             if (!event.target.matches('.dropbtn')) {
+                closeAllDropdowns();
+            }
+        }
+
+        // Handles modal click to close it on outside click
+        function handleModalClick(event) {
+            customLog("Handling modal click...");
+            if (event.target.classList.contains('modal')) {
+                modal.close();
+            }
+        }
+
+        function createNewChat() {
+            customLog("Preparing for new chat...");
+            appState.currentSessionId = null;
+            document.getElementById('chat-box').innerHTML = ''; // Clear previous chat
+            modal.close();
+        }
+
+        function loadSessionsIntoModal() {
+            customLog("Loading sessions into modal...");
+            fetch('/get-sessions', { cache: 'no-cache' })
+                .then(response => response.json())
+                .then(sessions => {
+                    if (!sessions || !Array.isArray(sessions)) {
+                        throw new Error('Sessions is not an array');
+                    }
+                    console.log('Sessions fetched:', JSON.stringify(sessions, null, 2));
+                    const projectList = document.getElementById('project-list');
+                    projectList.innerHTML = '';
+                    sessions.forEach(session => {
+                        console.log(`Creating session item for session_id: ${session.session_id}, name: ${session.name}`); // Log each session
+                        const sessionItem = createSessionItem(session);
+                        projectList.appendChild(sessionItem);
+                    });
+                })
+                .catch(error => {
+                    console.error('Error fetching sessions:', error);
+                });  
+        }
+
+        document.addEventListener('click', function(event) {
+            // Handle all document click events here and delegate as necessary
+            const projectList = document.getElementById('project-list');
+            if (projectList.contains(event.target)) {
+                if (event.target.matches('.session-entry span')) {
+                    const sessionId = event.target.dataset.sessionId;
+                    loadSession(sessionId);
+                }
+                closeAllDropdowns();
+            }
+        });
+
+        function closeAllDropdowns() {
             var dropdowns = document.getElementsByClassName("dropdown-content");
             for (var i = 0; i < dropdowns.length; i++) {
                 var openDropdown = dropdowns[i];
                 if (openDropdown.classList.contains('show')) {
-                openDropdown.classList.remove('show');
+                    openDropdown.classList.remove('show');
                 }
             }
-            }
-        };
+        }
 
         function createAndSendNewChat(message) {
-            return fetch('/new-session', { method: 'POST' })
-                .then(response => response.json())
-                .then(data => {
-                    currentSessionId = data.session_id;
-                    customLog("New chat session created: " + currentSessionId);
-                    return sendAndDisplayMessage(message);
-                }).then(() => {
-                    if (!isCurrentSessionAddedToSidebar) {
-                        addSessionToSidebar(currentSessionId);
-                        isCurrentSessionAddedToSidebar = true;
-                    }
-                });
+            if (appState.currentSessionId === null) {
+                return fetch('/new-session', { method: 'POST' })
+                    .then(response => response.json())
+                    .then(data => {
+                        appState.currentSessionId = data.session_id;
+                        customLog("New chat session created: " + appState.currentSessionId);
+                        return sendAndDisplayMessage(message);
+                    });
+            } else {
+                return sendAndDisplayMessage(message);
+            }
         }
 
         function sendMessage(event) {
             if (event.key === "Enter") {
-                let inputBox = document.getElementById('input-box');
-                let message = inputBox.value;
-                inputBox.value = '';
-                
-                appendMessage('You: ' + message, 'user');
-                showLoadingIndicator(true); // Show loading indicator
+                // Prevents the default action to ensure form is not submitted traditionally
+                event.preventDefault();
 
-                if (currentSessionId === null) {
+                let inputBox = document.getElementById('input-box');
+                let message = inputBox.value.trim();
+                if (message === '') return; // Prevent sending empty messages
+                inputBox.value = '';
+
+                // Append message and show loading indicator
+                appendMessage('You: ' + message, 'user');
+                showLoadingIndicator(true);
+
+                // If there is no session, create one, otherwise send the message.
+                if (appState.currentSessionId === null) {
                     createAndSendNewChat(message);
                 } else {
                     sendAndDisplayMessage(message);
                 }
-                chatBox.scrollTop = chatBox.scrollHeight;
             }
         }
-        
+
+
         function applyTextStyles(text) {
             // Headers
             text = text.replace(/(###\s(.*))/g, '<h3>$2</h3>');
@@ -398,7 +630,7 @@
         function sendAndDisplayMessage(message) {
             customLog("Sending and displaying message...");
             // Return the fetch promise
-            return fetch('/query?session_id=' + currentSessionId + '&query=' + encodeURIComponent(message))
+            return fetch('/query?session_id=' + appState.currentSessionId + '&query=' + encodeURIComponent(message))
                 .then(response => response.text())
                 .then(data => {
                     showLoadingIndicator(false); // Hide loading indicator
@@ -419,8 +651,8 @@
             }
         }
 
-
         function loadSessions() {
+
             customLog("Loading sessions...");
 
             fetch('/get-sessions')
@@ -429,77 +661,13 @@
                     if (!sessions || !Array.isArray(sessions)) {
                         throw new Error('Sessions is not an array');
                     }
-                    const sidebar = document.getElementById('sidebar');
-                    const chatHistoriesHeading = sidebar.querySelector('h2');
-                    sessions.forEach(session => {
-                        addSessionToSidebar(session.session_id, session.name); // Pass the session name here
-                    });
                 }).catch(error => {
                     customLog('Error fetching sessions: ' + error, true);
                 });
         }
 
-        function addSessionToSidebar(sessionId, sessionName) {
-            const sidebar = document.getElementById('sidebar');
-            const sessionDiv = document.createElement('div');
-            sessionDiv.className = 'session-entry';
-
-            const sessionButton = document.createElement('button');
-            sessionButton.textContent = sessionName || 'Session ' + sessionId;
-            sessionButton.className = 'button-style';
-            sessionButton.onclick = () => loadSession(sessionId);
-
-            // Create a dropdown button
-            const dropdownButton = document.createElement('button');
-            dropdownButton.className = 'dropbtn';
-            dropdownButton.innerHTML = '...';
-            // Dropdown button event listener
-            dropdownButton.onclick = function(event) {
-                event.stopPropagation();
-                this.nextElementSibling.classList.toggle('show');
-            };
-
-            // Create a dropdown content div
-            const dropdownContent = document.createElement('div');
-            dropdownContent.className = 'dropdown-content';
-
-            // Add menu items here
-            const deleteButton = document.createElement('a');
-            deleteButton.href = '#';
-            deleteButton.textContent = 'Delete Chat';
-            deleteButton.onclick = function(event) {
-                event.preventDefault();
-                deleteChat(sessionId, sessionDiv);
-            };
-
-            const renameButton = document.createElement('a');
-            renameButton.href = '#';
-            renameButton.textContent = 'Rename Session';
-            renameButton.onclick = function(event) {
-                event.preventDefault();
-                var newSessionName = prompt('Enter new session name:', sessionButton.textContent);
-                if (newSessionName) {
-                    renameSession(sessionId, newSessionName);
-                    sessionButton.textContent = newSessionName;
-                }
-            };
-
-            // Append the menu items to the dropdown
-            dropdownContent.appendChild(renameButton);
-            dropdownContent.appendChild(deleteButton);
-
-            // Append the dropdown button and content to the session entry
-            sessionDiv.appendChild(sessionButton);
-            sessionDiv.appendChild(dropdownButton);
-            sessionDiv.appendChild(dropdownContent);
-
-                // Insert the session entry to the sidebar
-                const chatHistoriesHeading = sidebar.querySelector('h2');
-                sidebar.insertBefore(sessionDiv, chatHistoriesHeading.nextSibling);
-            }
-
-
         function loadSession(sessionId) {
+            customLog(`Loading session: ${sessionId}, currentSessionId: ${appState.currentSessionId}`);
             customLog("Loading session:" + sessionId);
             fetch('/get-session-history?session_id=' + sessionId)
                 .then(response => response.json())
@@ -511,54 +679,72 @@
                     history.forEach(item => {
                         appendMessage(item.content, item.role === 'user' ? 'user' : 'ai');
                     });
-                    currentSessionId = sessionId; // Update current session ID
+                    appState.currentSessionId = sessionId; // Update current session ID
                 }).catch(error => {
                     customLog('Error loading session:' + error, true);
+                }).finally(() => {
+                    // This ensures the modal is toggled after the session is loaded or if there is an error
+                    modal.close();
                 });
         }
 
-        function deleteChat(sessionId, sessionDiv) {
-            fetch('/delete-session?session_id=' + sessionId, { method: 'DELETE' })
-            .then(response => {
-                if (response.ok) {
-                    // Remove the session from the sidebar
-                    sessionDiv.remove();
-                    // If the current chat is the one being deleted, clear the chat window
-                    if (currentSessionId == sessionId) {
-                        currentSessionId = null; // Reset the current session ID
-                        document.getElementById('chat-box').innerHTML = ''; // Clear the chat window
-                    }
-                    customLog("Chat session " + sessionId + " deleted.");
-                } else {
-                    customLog("Failed to delete chat session " + sessionId, true);
+        function deleteChat(sessionId, sessionItem) {
+            
+            fetch(`/delete-session?session_id=${sessionId}`, {
+                method: 'DELETE',
+            }).then(response => {
+                if (!response.ok) throw new Error('Network response was not ok.');
+                if (appState.currentSessionId === sessionId) {
+                    appState.currentSessionId = null; 
+                    document.getElementById('chat-box').innerHTML = '';
                 }
+                sessionItem.remove();
+                customLog("Chat session deleted successfully.");
             }).catch(error => {
-                customLog("Error: " + error, true);
+                customLog("Error deleting session: " + error, true);
             });
         }
 
-        function renameSession(sessionId, newName) {
-            fetch('/rename-session', {
-                method: 'POST',
+        function renameSession(sessionId, newName, sessionNameElement) {
+            console.log(`Attempting to rename session: ${sessionId} to newName: ${newName}`);
+            if (!sessionNameElement) {
+                customLog("Session name element not found for renaming.");
+                return;
+            }
+
+            if (!(sessionNameElement instanceof HTMLElement)) {
+                customLog("Session name element is not an HTML element.");
+                return;
+            }
+
+            if (typeof newName !== 'string' || !newName.trim()) {
+                customLog("New name is not a valid non-empty string.");
+                return;
+            }
+
+            const requestBody = JSON.stringify({
+                sessionId: sessionId.toString(), // Ensure it's a string
+                newName: newName.trim(), // Trim any whitespace
+            });
+
+            fetch(`/rename-session`, {
+                method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ sessionId: sessionId.toString(), newName }),
+                body: requestBody,
             }).then(response => {
-                if (response.ok) {
-                    customLog("Session " + sessionId + " renamed to " + newName + ".");
-                } else {
-                    response.text().then(text => {
-                        customLog("Failed to rename session " + sessionId + ": " + text, true);
-                    });
-                }
+                if (!response.ok) throw new Error(`Network response was not ok: ${response.status}`);
+                return response.json(); // Assuming the server sends back a JSON response
+            }).then(data => {
+                console.log(`Successfully renamed session: ${sessionId} to newName: ${newName}`);
+                sessionNameElement.textContent = newName; // Update the session name
+                customLog("Session renamed successfully.");
+                console.log(`Updated session name element for session: ${sessionId}`, sessionNameElement);
             }).catch(error => {
-                customLog("Error: " + error, true);
+                customLog("Error renaming session: " + error, true);
             });
         }
-
-
-        window.addEventListener('load', loadSessions);
-    </script>
+    </script>  
 </body>
 </html>

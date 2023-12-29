@@ -4,6 +4,7 @@ import (
 	"GPTChat/errors"
 	"GPTChat/services"
 	"encoding/json"
+	"log"
 	"net/http"
 	"os"
 	"os/exec"
@@ -124,6 +125,11 @@ func (h *Handler) GetSessionsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Disable caching
+	w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
+	w.Header().Set("Pragma", "no-cache")
+	w.Header().Set("Expires", "0")
+
 	sendJSONResponse(w, sessions, http.StatusOK)
 }
 
@@ -144,11 +150,22 @@ func (h *Handler) RenameSessionHandler(w http.ResponseWriter, r *http.Request) {
 		NewName   string `json:"newName"`
 	}
 
+	// Decode the JSON request
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
 		errors.HandleError(w, errors.NewCustomError(http.StatusBadRequest, "Error decoding JSON", "An unexpected error has occurred."))
 		return
 	}
 
+	log.Printf("Received rename request: %+v", request)
+
+	// Validate the request
+	if request.SessionID == "" {
+		log.Printf("Received empty sessionID for rename")
+		errors.HandleError(w, errors.NewCustomError(http.StatusBadRequest, "sessionID cannot be empty", "Invalid sessionID."))
+		return
+	}
+
+	// Rename the session
 	if err := h.sessionService.RenameSession(request.SessionID, request.NewName); err != nil {
 		errors.HandleError(w, errors.NewCustomError(http.StatusInternalServerError, "Error renaming session", "An unexpected error has occurred."))
 		return
