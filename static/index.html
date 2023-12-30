@@ -279,69 +279,117 @@
         </div>
     </div>  
     <script>
-        
+
+        const sidebar = document.getElementById('sidebar');
+        const chatBox = document.getElementById('chat-box');
+        const inputBox = document.getElementById('input-box');
+        const projectSelectionModal = document.getElementById('project-selection-modal');
+        const projectList = document.getElementById('project-list');
+        const loadingIndicator = document.getElementById('loadingIndicator');
+        const newChatButton = document.getElementById('new-chat-button');
+
         const appState = {
-            currentSessionId: null,
+            currentSessionId: null
+        };
+        
+        document.addEventListener('DOMContentLoaded', initializeApp);
 
-            initializeApp: () => {
-                customLog("Initializing app...");
-                appState.setupEventListeners();
-                appState.setupModalEventListeners();
-                appState.setupDropdowns();
-            },
+        function initializeApp() {
+            setupEventListeners();
+        }
 
-            setupEventListeners: function() {
-                customLog("Setting up event listeners...");
+        function setupEventListeners() {
+            newChatButton.addEventListener('click', openModal);
+            projectSelectionModal.addEventListener('click', handleModalClick);
+            projectList.addEventListener('click', handleProjectListClick);
+            inputBox.addEventListener('keypress', sendMessage);
             
-                document.getElementById('new-chat-button').addEventListener('click', function() {
-                    event.stopPropagation();
-                    modal.open();
-                });
-                document.querySelector('.close-button').addEventListener('click', modal.close);
-                
-                document.getElementById('project-selection-modal').addEventListener('click', handleModalClick);
-                document.querySelector('#project-selection-modal button').addEventListener('click', createNewChat);
-                // Event delegation for session items and dropdowns
-                document.getElementById('project-list').addEventListener('click', handleProjectListClick);
-                document.addEventListener('click', closeAllDropdownsOutsideClick);
-                
-                // Input box event
-                document.getElementById('input-box').addEventListener('keypress', sendMessage);
-            },
-
-            setupModalEventListeners: function() {
-                customLog("Setting up modal event listeners...");
-                const projectList = document.getElementById('project-list');
-                // Use event delegation for project list items
-                projectList.addEventListener('click', function(event) {
+            // Additional event listeners...
+            document.querySelector('.close-button').addEventListener('click', closeModal);
+            document.getElementById('project-selection-modal').addEventListener('click', handleModalClick);
+            document.querySelector('#project-selection-modal button').addEventListener('click', createNewChat);
+            // Event delegation for session items and dropdowns
+            document.getElementById('project-list').addEventListener('click', handleProjectListClick);
+            document.addEventListener('click', closeAllDropdownsOutsideClick);
+            // Input box event
+            document.getElementById('input-box').addEventListener('keypress', sendMessage);
+            
+            // Modal event listeners
+            projectList.addEventListener('click', function(event) {
                     if (event.target && event.target.matches('.project-list-item span')) {
                         const sessionId = event.target.closest('.project-list-item').dataset.sessionId;
                         customLog(`Session list item ${sessionId} clicked.`);
                         loadSession(sessionId);
                     }
-                });
-            },
+            });
 
-            setupDropdowns: function() {
-                customLog("Setting up dropdowns...");
-                document.querySelectorAll('.dropbtn').forEach(function(dropbtn) {
-                    dropbtn.onclick = function(event) {
-                        // Prevent the event from closing dropdowns
-                        event.stopPropagation();
-                        // Close all other dropdowns
-                        closeAllDropdowns();
-                        // Toggle this dropdown
-                        this.nextElementSibling.classList.toggle('show');
-                    };
-                });
-            },
+            // Dropdown event listeners
+            document.querySelectorAll('.dropbtn').forEach(function(dropbtn) {
+                dropbtn.onclick = function(event) {
+                    // Prevent the event from closing dropdowns
+                    event.stopPropagation();
+                    // Close all other dropdowns
+                    closeAllDropdowns();
+                    // Toggle this dropdown
+                    this.nextElementSibling.classList.toggle('show');
+                };
+            });
+        }
 
+        function openModal() {
+            projectSelectionModal.style.display = 'block';
+            loadSessionsIntoModal();
+        }
 
-        };
+        function closeModal() {
+            projectSelectionModal.style.display = 'none';
+        }
 
-        // Initialization app
-        window.addEventListener('DOMContentLoaded', () => appState.initializeApp());
+        function handleProjectListClick(event) {
+            event.stopPropagation();
+            const sessionItem = event.target.closest('.project-list-item');
+            customLog("Clicked on Session item: " + sessionItem);
+            if (!sessionItem) return;
 
+            const sessionId = sessionItem.dataset.sessionId;
+            if (event.target.classList.contains('rename-option')) {
+                const sessionNameElement = sessionItem.querySelector('span.session-name'); // Ensure this selector targets the correct span
+                customLog("Session name element: " + sessionNameElement);
+                const currentName = sessionNameElement.textContent;
+                const newName = prompt('Enter new session name:', currentName);
+                if (newName && newName !== currentName) {
+                    renameSession(sessionId, newName, sessionNameElement);
+                }
+            } else if (event.target.classList.contains('delete-option')) {
+                if (confirm('Are you sure you want to delete this session?')) {
+                    deleteChat(sessionId, sessionItem);
+                }
+            }
+            closeAllDropdowns();
+        }
+
+        function sendMessage(event) {
+            if (event.key === "Enter") {
+                // Prevents the default action to ensure form is not submitted traditionally
+                event.preventDefault();
+
+                let message = inputBox.value.trim();
+                if (message === '') return; // Prevent sending empty messages
+                inputBox.value = '';
+
+                // Append message and show loading indicator
+                appendMessage('You: ' + message, 'user');
+                showLoadingIndicator(true);
+
+                // If there is no session, create one, otherwise send the message.
+                if (appState.currentSessionId === null) {
+                    createAndSendNewChat(message);
+                } else {
+                    sendAndDisplayMessage(message);
+                }
+            }
+        }
+        
         function customLog(message, isError = false) {
             let logObject = { message, isError };
             fetch('/log', {
@@ -353,26 +401,6 @@
             });
         }
 
-        // Modal handling
-        const modal = (function() {
-            const projectModal = document.getElementById('project-selection-modal');
-        
-            function closeModal() {
-                customLog("Closing modal...");
-                projectModal.style.display = 'none';
-            }
-
-        // Public API
-            return {
-                open: function() {
-                    console.log("Current state before modal open:", appState);
-                    customLog("Opening modal...");
-                    projectModal.style.display = 'block';
-                    loadSessionsIntoModal();
-                },
-                close: closeModal
-            };
-        })();
 
         function createSessionItem(session) {
             customLog(`Creating session item with session_id: ${session.session_id} and name: ${session.name}`);
@@ -431,30 +459,6 @@
             return option;
         }
 
-
-        function handleProjectListClick(event) {
-            event.stopPropagation();
-            const sessionItem = event.target.closest('.project-list-item');
-            customLog("Clicked on Session item: " + sessionItem);
-            if (!sessionItem) return;
-
-            const sessionId = sessionItem.dataset.sessionId;
-            if (event.target.classList.contains('rename-option')) {
-                const sessionNameElement = sessionItem.querySelector('span.session-name'); // Ensure this selector targets the correct span
-                customLog("Session name element: " + sessionNameElement);
-                const currentName = sessionNameElement.textContent;
-                const newName = prompt('Enter new session name:', currentName);
-                if (newName && newName !== currentName) {
-                    renameSession(sessionId, newName, sessionNameElement);
-                }
-            } else if (event.target.classList.contains('delete-option')) {
-                if (confirm('Are you sure you want to delete this session?')) {
-                    deleteChat(sessionId, sessionItem);
-                }
-            }
-            closeAllDropdowns();
-        }
-
         // Toggles a dropdown menu
         function toggleDropdown(buttonElement) {
             closeAllDropdowns();
@@ -471,7 +475,7 @@
         function handleModalClick(event) {
             customLog("Handling modal click...");
             if (event.target.classList.contains('modal')) {
-                modal.close();
+                closeModal();
             }
         }
 
@@ -479,7 +483,7 @@
             customLog("Preparing for new chat...");
             appState.currentSessionId = null;
             document.getElementById('chat-box').innerHTML = ''; // Clear previous chat
-            modal.close();
+            closeModal();
         }
 
         function loadSessionsIntoModal() {
@@ -491,7 +495,6 @@
                         throw new Error('Sessions is not an array');
                     }
                     console.log('Sessions fetched:', JSON.stringify(sessions, null, 2));
-                    const projectList = document.getElementById('project-list');
                     projectList.innerHTML = '';
                     sessions.forEach(session => {
                         console.log(`Creating session item for session_id: ${session.session_id}, name: ${session.name}`); // Log each session
@@ -506,7 +509,6 @@
 
         document.addEventListener('click', function(event) {
             // Handle all document click events here and delegate as necessary
-            const projectList = document.getElementById('project-list');
             if (projectList.contains(event.target)) {
                 if (event.target.matches('.session-entry span')) {
                     const sessionId = event.target.dataset.sessionId;
@@ -540,30 +542,6 @@
             }
         }
 
-        function sendMessage(event) {
-            if (event.key === "Enter") {
-                // Prevents the default action to ensure form is not submitted traditionally
-                event.preventDefault();
-
-                let inputBox = document.getElementById('input-box');
-                let message = inputBox.value.trim();
-                if (message === '') return; // Prevent sending empty messages
-                inputBox.value = '';
-
-                // Append message and show loading indicator
-                appendMessage('You: ' + message, 'user');
-                showLoadingIndicator(true);
-
-                // If there is no session, create one, otherwise send the message.
-                if (appState.currentSessionId === null) {
-                    createAndSendNewChat(message);
-                } else {
-                    sendAndDisplayMessage(message);
-                }
-            }
-        }
-
-
         function applyTextStyles(text) {
             // Headers
             text = text.replace(/(###\s(.*))/g, '<h3>$2</h3>');
@@ -590,7 +568,7 @@
         }
 
         function appendMessage(message, sender) {
-            let chatBox = document.getElementById('chat-box');
+            
             const codeBlockRegex = /```[\s\S]*?```/g;
             let match;
             let lastIndex = 0;
@@ -643,7 +621,6 @@
         }
 
         function showLoadingIndicator(show) {
-            let loadingIndicator = document.getElementById('loadingIndicator');
             if (show) {
                 loadingIndicator.style.display = 'block';
             } else {
@@ -672,7 +649,6 @@
             fetch('/get-session-history?session_id=' + sessionId)
                 .then(response => response.json())
                 .then(history => {
-                    const chatBox = document.getElementById('chat-box');
                     chatBox.innerHTML = ''; // Clear previous chat
 
                     // Process each message and append it with a line break
@@ -684,7 +660,7 @@
                     customLog('Error loading session:' + error, true);
                 }).finally(() => {
                     // This ensures the modal is toggled after the session is loaded or if there is an error
-                    modal.close();
+                    closeModal();
                 });
         }
 
