@@ -48,7 +48,7 @@ pip install -r requirements.txt
 From the root directory of the project, run:
 
 ```bash
-go run main.go`
+go run main.go
 ```
 
 This will start the server on `localhost:8080`.

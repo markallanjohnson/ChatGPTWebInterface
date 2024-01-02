@@ -110,18 +110,21 @@
             border: none;
             cursor: pointer;
             outline: none;
+        }
+
+        .dropdown {
             position: relative;
-            float: right;
         }
 
         .dropdown-content {
             display: none;
             position: absolute;
-            right: 0;
             background-color: #333;
             min-width: 160px;
             box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
             z-index: 1;
+            right: 0; /* Align to the right edge of .dropdown */
+            top: 100%; /* Align to the bottom edge of .dropdown */
         }
 
         .dropdown-content a {
@@ -289,7 +292,8 @@
         const newChatButton = document.getElementById('new-chat-button');
 
         const appState = {
-            currentSessionId: null
+            currentSessionId: null,
+            sessionNames: {}
         };
         
         document.addEventListener('DOMContentLoaded', initializeApp);
@@ -316,11 +320,10 @@
             
             // Modal event listeners
             projectList.addEventListener('click', function(event) {
-                    if (event.target && event.target.matches('.project-list-item span')) {
-                        const sessionId = event.target.closest('.project-list-item').dataset.sessionId;
-                        customLog(`Session list item ${sessionId} clicked.`);
-                        loadSession(sessionId);
-                    }
+                if (event.target && event.target.matches('.project-list-item span')) {
+                    const sessionId = event.target.closest('.project-list-item').dataset.sessionId;
+                    selectSession(sessionId); // Use selectSession to handle session selection
+                }
             });
 
             // Dropdown event listeners
@@ -366,6 +369,49 @@
                 }
             }
             closeAllDropdowns();
+        }
+
+        function storeSessionNames(sessions) {
+            sessions.forEach(session => {
+                appState.sessionNames[session.session_id] = session.name;
+            });
+        }
+
+        function updateActiveSessionDisplay() {
+            // Remove the existing active session display if it exists
+            const existingActiveSessionDisplay = document.getElementById('active-session-display');
+            if (existingActiveSessionDisplay) {
+                existingActiveSessionDisplay.remove();
+            }
+
+            // Only proceed if there is an active session ID
+            if (appState.currentSessionId) {
+                const sessionName = appState.sessionNames[appState.currentSessionId] || 'Unnamed Session';
+                const sessionDisplay = createSessionItem({
+                    session_id: appState.currentSessionId,
+                    name: sessionName
+                });
+                sessionDisplay.id = 'active-session-display';
+                
+                // Find the 'Directory' heading and insert the session button after it
+                const directoryHeading = document.querySelector('#sidebar h2'); // Assuming 'Directory' is an <h2> inside #sidebar
+                if (directoryHeading) {
+                    directoryHeading.after(sessionDisplay); // Insert after the 'Directory' heading
+                } else {
+                    // If the 'Directory' heading cannot be found, append to the end of sidebar
+                    sidebar.appendChild(sessionDisplay);
+                }
+            }
+        }
+
+
+        function selectSession(sessionId) {
+            // Set the current session ID
+            appState.currentSessionId = sessionId;
+            // Fetch and load the session history
+            loadSession(sessionId);
+            // Close the modal
+            closeModal();
         }
 
         function sendMessage(event) {
@@ -497,14 +543,15 @@
                     console.log('Sessions fetched:', JSON.stringify(sessions, null, 2));
                     projectList.innerHTML = '';
                     sessions.forEach(session => {
-                        console.log(`Creating session item for session_id: ${session.session_id}, name: ${session.name}`); // Log each session
+                        console.log(`Creating session item for session_id: ${session.session_id}, name: ${session.name}`);
                         const sessionItem = createSessionItem(session);
                         projectList.appendChild(sessionItem);
                     });
+                    storeSessionNames(sessions); // Store the names for later use
                 })
                 .catch(error => {
                     console.error('Error fetching sessions:', error);
-                });  
+                });
         }
 
         document.addEventListener('click', function(event) {
@@ -644,10 +691,14 @@
         }
 
         function loadSession(sessionId) {
-            customLog(`Loading session: ${sessionId}, currentSessionId: ${appState.currentSessionId}`);
-            customLog("Loading session:" + sessionId);
+            customLog(`Loading session: ${sessionId}`);
             fetch('/get-session-history?session_id=' + sessionId)
-                .then(response => response.json())
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok.');
+                    }
+                    return response.json();
+                })
                 .then(history => {
                     chatBox.innerHTML = ''; // Clear previous chat
 
@@ -656,13 +707,16 @@
                         appendMessage(item.content, item.role === 'user' ? 'user' : 'ai');
                     });
                     appState.currentSessionId = sessionId; // Update current session ID
-                }).catch(error => {
+                    updateActiveSessionDisplay(); // Update the active session display
+                })
+                .catch(error => {
                     customLog('Error loading session:' + error, true);
-                }).finally(() => {
-                    // This ensures the modal is toggled after the session is loaded or if there is an error
+                })
+                .finally(() => {
                     closeModal();
                 });
         }
+
 
         function deleteChat(sessionId, sessionItem) {
             
