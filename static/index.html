@@ -256,6 +256,49 @@
             background-color: #0f0;
             color: #000;
         }
+
+        .active-session {
+            background-color: #0f0; /* Green background for active session */
+            color: #000; /* Black text for contrast */
+            border: 1px solid #0f0; /* Bright green border to stand out */
+        }
+
+        .project-list-item.active-session button {
+            background-color: #000; /* Black background for contrast */
+            color: #0f0; /* Green text for contrast */
+            border: 1px solid #0f0; /* Bright green border to stand out */
+        }
+
+        #text-selection-dropdown {
+            background-color: #333; /* Match the modal dropdown background color */
+            color: white; /* Text color */
+            padding: 5px; /* Padding around the dropdown items */
+            border-radius: 5px; /* Match the modal dropdown border radius */
+            box-shadow: 0 4px 8px 0 rgba(0,0,0,0.2), 0 6px 20px 0 rgba(0,0,0,0.19); /* Match the modal dropdown shadow */
+            z-index: 2; /* Ensure dropdown appears above other content */
+            border: 1px solid #888; /* Similar border to the modal dropdown */
+            min-width: 160px; /* Minimum width to match modal dropdown */
+            position: absolute; /* Positioning relative to the selected text */
+            display: none; /* Initially hidden */
+        }
+
+        #text-selection-dropdown button {
+            background-color: transparent; /* Button background to match the modal style */
+            color: #0f0; /* Text color to match modal buttons */
+            border: 1px solid #0f0; /* Border color to match modal buttons */
+            border-radius: 4px; /* Rounded corners to match modal buttons */
+            padding: 5px 10px; /* Padding inside buttons */
+            margin: 2px 0; /* Margin between buttons */
+            cursor: pointer; /* Cursor to indicate clickable items */
+            text-align: left; /* Align text to the left */
+            width: 100%; /* Full width within the dropdown */
+            box-sizing: border-box; /* Include padding and border in the width */
+        }
+
+        #text-selection-dropdown button:hover {
+            background-color: #444; /* Slightly darker background on hover to indicate interactivity */
+        }
+
     </style>
 </head>
 <body>
@@ -280,7 +323,12 @@
             </div>
             <button onclick="createNewChat()">+ New Project</button>
         </div>
-    </div>  
+    </div>
+    <div id="text-selection-dropdown" style="display: none; position: absolute; background: #333; color: white; padding: 5px; border-radius: 5px;">
+        <!-- Add your dropdown options here -->
+        <button>Create Tangent</button>
+        <!-- ... other buttons ... -->
+    </div>
     <script>
 
         const sidebar = document.getElementById('sidebar');
@@ -541,13 +589,22 @@
                         throw new Error('Sessions is not an array');
                     }
                     console.log('Sessions fetched:', JSON.stringify(sessions, null, 2));
+                    console.log('Current Session ID:', appState.currentSessionId);
                     projectList.innerHTML = '';
                     sessions.forEach(session => {
-                        console.log(`Creating session item for session_id: ${session.session_id}, name: ${session.name}`);
                         const sessionItem = createSessionItem(session);
                         projectList.appendChild(sessionItem);
+                        customLog("session " + session.session_id + " added to project list.")
+                        customLog("current session: " + appState.currentSessionId)
+                        customLog(typeof appState.currentSessionId); // string
+                        customLog(typeof session.session_id); // number
+                        // Add active session class if this session is the current session
+                        if (session.session_id === parseInt(appState.currentSessionId, 10)) {
+                            sessionItem.classList.add('active-session');
+                            customLog("session " + session.session_id + " is active.");
+                        }
                     });
-                    storeSessionNames(sessions); // Store the names for later use
+                    storeSessionNames(sessions);
                 })
                 .catch(error => {
                     console.error('Error fetching sessions:', error);
@@ -564,6 +621,46 @@
                 closeAllDropdowns();
             }
         });
+
+        function copySelectedText() {
+            const selection = window.getSelection();
+            const selectionText = selection.toString();
+            navigator.clipboard.writeText(selectionText).then(() => {
+                alert('Copied to clipboard');
+            }).catch(err => {
+                console.error('Failed to copy text', err);
+            });
+        }
+
+        // Event listener for text selection
+        document.addEventListener('mouseup', function(event) {
+            setTimeout(showSelectionDropdown, 10); // Add a short delay before showing the dropdown
+        }, false);
+
+        function showSelectionDropdown() {
+            const selection = window.getSelection();
+            const selectionText = selection.toString().trim();
+
+            const dropdown = document.getElementById('text-selection-dropdown');
+
+            if (selectionText.length > 0) {
+                const rangeRect = selection.getRangeAt(0).getBoundingClientRect();
+                dropdown.style.top = `${rangeRect.bottom + window.scrollY}px`;
+                dropdown.style.left = `${rangeRect.left + window.scrollX}px`;
+                dropdown.style.display = 'block';
+            } else {
+                dropdown.style.display = 'none'; // Hide dropdown if no text is selected
+            }
+        }
+
+
+        // Hide dropdown when clicking outside
+        document.addEventListener('click', function(event) {
+            const dropdown = document.getElementById('text-selection-dropdown');
+            if (!dropdown.contains(event.target) && !event.target.matches('.dropbtn')) {
+                dropdown.style.display = 'none'; // Hide the dropdown if the click is outside
+            }
+        }, false);
 
         function closeAllDropdowns() {
             var dropdowns = document.getElementsByClassName("dropdown-content");
