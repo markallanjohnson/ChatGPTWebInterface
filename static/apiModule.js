@@ -88,6 +88,7 @@ const apiModule = (() => {
                 AppState.customLog(`AI: ${data}`);
                 uiModule.showLoadingIndicator(false); // Hide loading indicator
                 uiModule.appendMessage('AI: ' + data, 'ai');
+                uiModule.updateActiveSessionDisplay();
             }).catch(error => {
                 AppState.customLog('Error sending message:' + error, true);
                 uiModule.showLoadingIndicator(false); // Hide loading indicator
@@ -113,8 +114,12 @@ const apiModule = (() => {
     }
 
     function loadSessionsIntoModal() {
+        AppState.customLog('Loading sessions into modal...');
         return sendRequest('/get-sessions', 'GET')
+            .then(response => response.json())
             .then(sessions => {
+                AppState.customLog('getting sessions...')
+                AppState.customLog(sessions);
                 if (!sessions || !Array.isArray(sessions)) {
                     throw new Error('Sessions is not an array');
                 }

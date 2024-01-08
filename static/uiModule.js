@@ -15,6 +15,8 @@ const uiModule = (() => {
         // Event listeners setup for UI elements
         function setupEventListeners() {
             newChatButton.addEventListener('click', openModal);
+            projectSelectionModal.addEventListener('click', handleModalClick);
+            projectList.addEventListener('click', handleProjectListClick);
             inputBox.addEventListener('keypress', apiModule.sendMessage);
 
             document.querySelector('.close-button').addEventListener('click', closeModal);
@@ -321,6 +323,7 @@ const uiModule = (() => {
     }
 
     function populateSessionsInModal(sessions) {
+        AppState.customLog("Populating sessions in modal...")
         console.log('Sessions fetched:', JSON.stringify(sessions, null, 2));
         console.log('Current Session ID:', AppState.getCurrentSessionId());
         projectList.innerHTML = ''; // Clear the list first
