@@ -58,7 +58,10 @@ const apiModule = (() => {
         // Prepare for new chat session
         AppState.customLog("Preparring for new chat session...");
         AppState.setCurrentSessionId(null);
+        uiModule.closeModal();
+        uiModule.chatBox.innerHTML = '';
         uiModule.updateActiveSessionDisplay();
+
     }
     
     function createAndSendNewChat(message) {
@@ -101,9 +104,9 @@ const apiModule = (() => {
             .catch(error => console.error('Error loading sessions:', error));
     }
 
-    function deleteChat(sessionId) {
+    function deleteChat(sessionId, sessionItem) {
         return sendRequest(`/delete-session?session_id=${sessionId}`, 'DELETE')
-            .then(() => uiModule.removeSessionItem(sessionId))
+            .then(() => uiModule.removeSessionItem(sessionId, sessionItem))
             .catch(error => console.error('Error deleting chat:', error));
     }
 
@@ -133,7 +136,7 @@ const apiModule = (() => {
             console.error('No session ID provided to loadSession');
             return;
         }
-    
+        AppState.customLog(`Loading session ${sessionId}...`);
         return sendRequest(`/get-session-history?session_id=${sessionId}`, 'GET')
             .then(response => {
                 // Check if the response is JSON or plain text and handle accordingly

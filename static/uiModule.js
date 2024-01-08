@@ -125,7 +125,6 @@ const uiModule = (() => {
         messageDiv.className = 'message ' + sender + '-message'; // Ensure to use sender-message for styling
         messageDiv.innerHTML = formattedMessage;
         chatBox.appendChild(messageDiv);
-        AppState.customLog(`Appending message: ${message} from ${sender}`);
         // Scroll to the bottom of the chat box
         chatBox.scrollTop = chatBox.scrollHeight;
     }
@@ -159,7 +158,7 @@ const uiModule = (() => {
         dropdownContent.className = 'dropdown-content';
         dropdownContent.appendChild(createDropdownOption('Rename', () => promptForNewSessionName(session.session_id, sessionName)));
 
-        dropdownContent.appendChild(createDropdownOption('Delete', () => apiModule.deleteChat(session.session_id)));
+        dropdownContent.appendChild(createDropdownOption('Delete', () => apiModule.deleteChat(session.session_id, sessionItem)));
         dropdown.appendChild(dropdownContent);
 
         sessionItem.appendChild(sessionName);
@@ -206,6 +205,23 @@ const uiModule = (() => {
     function closeAllDropdownsOutsideClick(event) {
         if (!event.target.matches('.dropbtn')) {
             closeAllDropdowns();
+        }
+    }
+
+    function removeSessionItem(sessionId, sessionItem) {
+
+        if (sessionItem) {
+            sessionItem.remove();
+            AppState.customLog(`Session ${sessionId} removed from the UI.`);
+
+            // If the deleted session is the current session, clear the chat box and reset the current session ID
+            if (AppState.getCurrentSessionId() === sessionId) {
+                AppState.setCurrentSessionId(null); 
+                document.getElementById('chat-box').innerHTML = '';
+                // Update any other UI elements as necessary
+            }
+        } else {
+            AppState.customLog(`Session item with ID ${sessionId} not found.`, true);
         }
     }
 
@@ -281,7 +297,7 @@ const uiModule = (() => {
             }
         } else if (event.target.classList.contains('delete-option')) {
             if (confirm('Are you sure you want to delete this session?')) {
-                apiModule.deleteChat(sessionId);
+                apiModule.deleteChat(sessionId, sessionItem);
             }
         }
         closeAllDropdowns();
@@ -377,6 +393,7 @@ const uiModule = (() => {
         initializeApp: initializeApp,
         populateSessionsInModal: populateSessionsInModal,
         displaySessions: displaySessions,
+        removeSessionItem: removeSessionItem,
         chatBox: chatBox,
         inputBox: inputBox,
     };
