@@ -37,12 +37,12 @@ func main() {
 func setupRoutes(handler *handlers.Handler) {
 	http.Handle("/", http.FileServer(http.Dir("./static")))
 	http.HandleFunc("/log", handler.LogHandler)
-	http.HandleFunc("/query", handler.QueryHandler)
-	http.HandleFunc("/new-session", handler.NewSessionHandler)
-	http.HandleFunc("/get-sessions", handler.GetSessionsHandler)
-	http.HandleFunc("/get-session-history", handler.GetSessionHistoryHandler)
-	http.HandleFunc("/delete-session", handler.DeleteSessionHandler)
-	http.HandleFunc("/rename-session", handler.RenameSessionHandler)
+	http.HandleFunc("/api/query", handler.QueryHandler)
+	http.HandleFunc("/api/new-session", handler.NewSessionHandler)
+	http.HandleFunc("/api/get-sessions", handler.GetSessionsHandler)
+	http.HandleFunc("/api/get-session-history", handler.GetSessionHistoryHandler)
+	http.HandleFunc("/api/delete-session", handler.DeleteSessionHandler)
+	http.HandleFunc("/api/rename-session", handler.RenameSessionHandler)
 }
 
 // startServer starts the HTTP server.
